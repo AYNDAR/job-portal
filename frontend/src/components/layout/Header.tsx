@@ -30,15 +30,24 @@ export default function Header() {
               Bookmarks
             </Link>
           )}
+          {user && user.userType === "Job Seeker" && (
+            <Link to="/dashboard" className="text-gray-700 hover:text-blue-600">
+              Dashboard
+            </Link>
+          )}
           {user && user.userType === "Admin" && (
             <Link to="/admin" className="text-gray-700 hover:text-blue-600">
               Admin
             </Link>
           )}
-          {user &&
-            (user.userType === "Admin" || user.userType === "Super Admin") && (
-              <Link to="/admin">Admin</Link>
-            )}
+          {user && user.userType === "Super Admin" && (
+            <Link
+              to="/super-admin"
+              className="text-gray-700 hover:text-blue-600"
+            >
+              Super Admin
+            </Link>
+          )}
         </nav>
         <div className="flex items-center gap-4">
           {!user ? (

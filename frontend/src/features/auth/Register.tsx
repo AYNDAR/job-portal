@@ -4,7 +4,6 @@ import { z } from "zod";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { register } from "../../store/authSlice";
 import { Link, useNavigate } from "react-router-dom";
-import { useEffect } from "react";
 
 const registerSchema = z
   .object({
@@ -25,9 +24,7 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 export default function Register() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { isLoading, error, token, user } = useAppSelector(
-    (state) => state.auth,
-  );
+  const { isLoading, error } = useAppSelector((state) => state.auth);
 
   const {
     register: registerField,
@@ -41,20 +38,21 @@ export default function Register() {
 
   const userType = watch("userType");
 
-  useEffect(() => {
-    if (token && user) {
-      if (user.userType === "Employer") {
-        navigate("/employer/dashboard");
-      } else {
-        navigate("/");
-      }
-    }
-  }, [token, user, navigate]);
-
-  const onSubmit = (data: RegisterFormData) => {
+  const onSubmit = async (data: RegisterFormData) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { confirmPassword, ...registerData } = data;
-    dispatch(register(registerData));
+    try {
+      const result = await dispatch(register(registerData)).unwrap();
+      if (result.token && result.user) {
+        if (result.user.userType === "Employer") {
+          navigate("/employer/dashboard");
+        } else {
+          navigate("/jobs");
+        }
+      }
+    } catch (err) {
+      // error is already handled in the slice
+    }
   };
 
   return (

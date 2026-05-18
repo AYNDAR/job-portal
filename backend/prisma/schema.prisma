@@ -80,19 +80,25 @@ model JobPostStatus {
 }
 
 model JobPost {
-  id                String   @id @default(uuid())
-  title             String
-  description       String
-  employer_id       String
-  employer          EmployerProfile @relation(fields: [employer_id], references: [id])
-  industry_id       Int
-  industry          JobIndustry @relation(fields: [industry_id], references: [id])
+  id                 String   @id @default(uuid())
+  title              String
+  description        String
+  employer_id        String
+  employer           EmployerProfile @relation(fields: [employer_id], references: [id])
+  industry_id        Int
+  industry           JobIndustry @relation(fields: [industry_id], references: [id])
   employment_type_id Int
-  employment_type   EmploymentType @relation(fields: [employment_type_id], references: [id])
-  salary_range      String?
-  status_id         Int
-  status            JobPostStatus @relation(fields: [status_id], references: [id])
-  created_at        DateTime @default(now())
+  employment_type    EmploymentType @relation(fields: [employment_type_id], references: [id])
+  salary_range       String?
+  status_id          Int
+  status             JobPostStatus @relation(fields: [status_id], references: [id])
+  created_at         DateTime @default(now())
+
+  // New filter fields
+  jobSite           String?
+  experienceLevel   String?
+  educationLevel    String?
+  genderPreference  String?
 
   applications JobApplication[]
   bookmarks    JobBookmark[]
@@ -149,10 +155,11 @@ model Notification {
   user_id      String
   user         User     @relation(fields: [user_id], references: [id])
   message      String
-  trigger_type String   // 'Job', 'Application'
+  trigger_type String
   is_read      Boolean  @default(false)
   created_at   DateTime @default(now())
 }
+
 model SearchLog {
   id         Int      @id @default(autoincrement())
   user_id    String?  // null for guest users

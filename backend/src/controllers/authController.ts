@@ -8,33 +8,23 @@ export const register = async (req: Request, res: Response) => {
     const { email, password, userType, fullName, companyName } = req.body;
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
+    if (existingUser)
       return res.status(400).json({ error: "Email already registered" });
-    }
 
     const userTypeRecord = await prisma.userType.findFirst({
       where: { type_name: userType },
     });
-    if (!userTypeRecord) {
+    if (!userTypeRecord)
       return res.status(400).json({ error: "Invalid user type" });
-    }
 
     const hashed = await hashPassword(password);
     const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashed,
-        user_type_id: userTypeRecord.id,
-      },
+      data: { email, password: hashed, user_type_id: userTypeRecord.id },
     });
 
     if (userType === "Job Seeker") {
       await prisma.jobSeekerProfile.create({
-        data: {
-          user_id: user.id,
-          full_name: fullName || "",
-          skills: [],
-        },
+        data: { user_id: user.id, full_name: fullName || "", skills: [] },
       });
     } else if (userType === "Employer") {
       await prisma.employerProfile.create({
@@ -70,13 +60,11 @@ export const login = async (req: Request, res: Response) => {
       where: { email },
       include: { user_type: true },
     });
-    if (!user) {
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
+    if (!user) return res.status(401).json({ error: "Invalid credentials" });
+
     const valid = await comparePassword(password, user.password);
-    if (!valid) {
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
+    if (!valid) return res.status(401).json({ error: "Invalid credentials" });
+
     const token = generateToken(user.id, user.user_type_id);
     res.json({
       token,

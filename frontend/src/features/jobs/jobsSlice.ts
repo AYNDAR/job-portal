@@ -44,7 +44,12 @@ interface SearchParams {
   industry?: string;
   type?: string;
   salary?: string;
+  jobSite?: string;
+  experienceLevel?: string;
+  educationLevel?: string;
+  genderPreference?: string;
   page: number;
+  limit?: number; // add this
 }
 
 export const searchJobs = createAsyncThunk(
@@ -56,9 +61,17 @@ export const searchJobs = createAsyncThunk(
     if (params.industry) query.append("industry", params.industry);
     if (params.type) query.append("type", params.type);
     if (params.salary) query.append("salary", params.salary);
+    if (params.jobSite) query.append("jobSite", params.jobSite);
+    if (params.experienceLevel)
+      query.append("experienceLevel", params.experienceLevel);
+    if (params.educationLevel)
+      query.append("educationLevel", params.educationLevel);
+    if (params.genderPreference)
+      query.append("genderPreference", params.genderPreference);
     query.append("page", params.page.toString());
+    if (params.limit) query.append("limit", params.limit.toString());
     const res = await api.get(`/jobs/search?${query.toString()}`);
-    return res.data; // { data, pagination: { page, pages } }
+    return res.data;
   },
 );
 

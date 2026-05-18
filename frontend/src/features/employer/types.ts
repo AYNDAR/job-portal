@@ -4,9 +4,13 @@ export interface Job {
   description: string;
   salary_range: string | null;
   created_at: string;
-  status: {
-    status_name: string;
-  };
+  status: { status_name: string };
+  industry?: { industry_name: string };
+  employment_type?: { type_name: string };
+  jobSite?: string;
+  experienceLevel?: string;
+  educationLevel?: string;
+  genderPreference?: string;
 }
 
 export interface Application {
@@ -19,15 +23,11 @@ export interface Application {
     email: string;
     resume_url: string | null;
   };
-  status: {
-    status_name: string;
-  };
+  status: { status_name: string };
   notes: {
     id: number;
     note_text: string;
     created_at: string;
-    employer: {
-      company_name: string;
-    };
+    employer: { company_name: string };
   }[];
 }

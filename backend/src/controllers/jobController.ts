@@ -10,15 +10,35 @@ export const searchJobs = async (req: Request, res: Response) => {
       location,
       type,
       salary,
+      jobSite,
+      experienceLevel,
+      educationLevel,
+      genderPreference,
       page = 1,
       limit = 20,
     } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
     const take = Number(limit);
 
-    const where: any = {
-      status: { status_name: "Open" },
-    };
+    const where: any = { status: { status_name: "Open" } };
+    if (title) where.title = { contains: title as string, mode: "insensitive" };
+    if (industry) {
+      const industryRecord = await prisma.jobIndustry.findFirst({
+        where: { industry_name: industry as string },
+      });
+      if (industryRecord) where.industry_id = industryRecord.id;
+    }
+    if (location)
+      where.employer = {
+        location: { contains: location as string, mode: "insensitive" },
+      };
+    if (type) where.employment_type = { type_name: type as string };
+    if (salary)
+      where.salary_range = { contains: salary as string, mode: "insensitive" };
+    if (jobSite) where.jobSite = jobSite as string;
+    if (experienceLevel) where.experienceLevel = experienceLevel as string;
+    if (educationLevel) where.educationLevel = educationLevel as string;
+    if (genderPreference) where.genderPreference = genderPreference as string;
 
     if (title && typeof title === "string") {
       where.title = { contains: title, mode: "insensitive" };

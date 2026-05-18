@@ -1,6 +1,19 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../../services/api";
-import { Application } from "./types";
+
+interface Application {
+  id: string;
+  job: {
+    id: string;
+    title: string;
+    employer: { company_name: string };
+    employment_type: { type_name: string };
+    salary_range: string;
+  };
+  status: { status_name: string };
+  cover_letter: string | null;
+  applied_at: string;
+}
 
 interface ApplicationsState {
   items: Application[];
@@ -18,7 +31,7 @@ export const fetchMyApplications = createAsyncThunk(
   "applications/fetch",
   async () => {
     const res = await api.get("/applications/my-applications");
-    return res.data as Application[];
+    return res.data;
   },
 );
 

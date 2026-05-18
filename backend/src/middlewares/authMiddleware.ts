@@ -16,7 +16,6 @@ export const verifyToken = (
   }
 
   const token = authHeader.split(" ")[1];
-
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
     req.user = { userId: decoded.userId, userTypeId: decoded.userTypeId };

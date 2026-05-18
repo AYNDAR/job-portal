@@ -4,7 +4,6 @@ import { z } from "zod";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { login } from "../../store/authSlice";
 import { Link, useNavigate } from "react-router-dom";
-import { useEffect } from "react";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -16,9 +15,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export default function Login() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { isLoading, error, token, user } = useAppSelector(
-    (state) => state.auth,
-  );
+  const { isLoading, error } = useAppSelector((state) => state.auth);
 
   const {
     register,
@@ -28,18 +25,15 @@ export default function Login() {
     resolver: zodResolver(loginSchema),
   });
 
-  useEffect(() => {
-    if (token && user) {
-      if (user.userType === "Employer") {
-        navigate("/employer/dashboard");
-      } else {
-        navigate("/");
+  const onSubmit = async (data: LoginFormData) => {
+    try {
+      const result = await dispatch(login(data)).unwrap();
+      if (result.token) {
+        navigate("/jobs");
       }
+    } catch (err) {
+      // error is already handled in the slice
     }
-  }, [token, user, navigate]);
-
-  const onSubmit = (data: LoginFormData) => {
-    dispatch(login(data));
   };
 
   return (

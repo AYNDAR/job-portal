@@ -4,7 +4,8 @@ import jobsReducer from "./jobsSlice";
 import bookmarksReducer from "./bookmarksSlice";
 import notificationsReducer from "./notificationsSlice";
 import adminReducer from "../features/admin/adminSlice";
-import employerReducer from "../features/employer/employerSlice";
+// employerReducer removed – employer dashboard uses direct API calls
+// Ensure applicationsSlice exists, otherwise comment out
 import applicationsReducer from "../features/applications/applicationsSlice";
 
 export const store = configureStore({
@@ -14,7 +15,6 @@ export const store = configureStore({
     bookmarks: bookmarksReducer,
     notifications: notificationsReducer,
     admin: adminReducer,
-    employer: employerReducer,
     applications: applicationsReducer,
   },
 });

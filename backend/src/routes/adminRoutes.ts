@@ -11,6 +11,14 @@ import {
   createAdminUser,
   updateAdminUser,
   deleteAdminUser,
+  getAllApplications,
+  changeAdminPassword,
+  updateAdminProfile,
+  getAdminProfile,
+  getTopCategories,
+  getApplicationStats,
+  getJobPostStats,
+  getRegistrationStats,
 } from "../controllers/admin-Controller";
 
 const router = Router();
@@ -27,5 +35,12 @@ router.get("/admins", requireRole(["Super Admin"]), getAdminUsers);
 router.post("/admins", requireRole(["Super Admin"]), createAdminUser);
 router.put("/admins/:id", requireRole(["Super Admin"]), updateAdminUser);
 router.delete("/admins/:id", requireRole(["Super Admin"]), deleteAdminUser);
-
+router.get("/applications", getAllApplications);
+router.get("/profile", getAdminProfile);
+router.put("/profile", updateAdminProfile);
+router.post("/change-password", changeAdminPassword);
+router.get("/stats/registrations", getRegistrationStats);
+router.get("/stats/job-posts", getJobPostStats);
+router.get("/stats/applications", getApplicationStats);
+router.get("/stats/top-categories", getTopCategories);
 export default router;
