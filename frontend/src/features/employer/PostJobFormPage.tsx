@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -6,67 +5,87 @@ import { z } from "zod";
 import api from "../../services/api";
 import { useAppSelector } from "../../store/hooks";
 import {
-  Briefcase,
-  DollarSign,
-  MapPin,
-  FileText,
-  Sparkles,
-  Eye,
   CheckCircle,
   AlertCircle,
-  Send,
+  Briefcase,
+  DollarSign,
+  Clock,
+  Users,
+  Upload,
 } from "lucide-react";
 
 const jobSchema = z.object({
-  title: z.string().min(1, "Title is required"),
+  title: z.string().min(1, "Job title is required"),
   description: z.string().min(50, "Description must be at least 50 characters"),
   industry_id: z.number().min(1, "Select an industry"),
   employment_type_id: z.number().min(1, "Select employment type"),
-  salary_range: z.string().optional(),
-  jobSite: z.string().optional(),
-  experienceLevel: z.string().optional(),
-  educationLevel: z.string().optional(),
-  genderPreference: z.string().optional(),
+  location: z.string().optional(),
+  budget_type: z.enum(["hourly", "fixed"]),
+  budget_min: z.number().min(0, "Budget minimum is required"),
+  budget_max: z.number().optional(),
+  duration: z.string().optional(),
+  experience_level: z.enum(["Entry", "Intermediate", "Expert"]),
+  skills: z.string().optional(),
+  require_resume: z.boolean().default(false),
 });
 
 type JobFormData = z.infer<typeof jobSchema>;
 
-interface PostJobFormProps {
-  onSuccess?: () => void;
-}
-
-export default function PostJobForm({ onSuccess }: PostJobFormProps) {
+export default function PostJobForm({ onSuccess }: { onSuccess?: () => void }) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
-
   const { token } = useAppSelector((state) => state.auth);
 
   const {
     register,
     handleSubmit,
+    watch,
     reset,
     formState: { errors },
   } = useForm<JobFormData>({
     resolver: zodResolver(jobSchema),
+    defaultValues: {
+      budget_type: "hourly",
+      experience_level: "Intermediate",
+      require_resume: false,
+    },
   });
+  const budgetType = watch("budget_type");
 
   const onSubmit = async (data: JobFormData) => {
     if (!token) {
       setError("You must be logged in");
       return;
     }
-
     setLoading(true);
     setError("");
     setSuccess("");
-
     try {
-      await api.post("/employer/jobs", data);
-
+      const skillsArray = data.skills
+        ? data.skills.split(",").map((s) => s.trim())
+        : [];
+      const payload = {
+        title: data.title,
+        description: data.description,
+        industry_id: data.industry_id,
+        employment_type_id: data.employment_type_id,
+        location: data.location,
+        budget_type: data.budget_type,
+        budget_min: data.budget_min,
+        budget_max: data.budget_max,
+        duration: data.duration,
+        experience_level: data.experience_level,
+        skills: skillsArray,
+        require_resume: data.require_resume,
+        salary_range:
+          data.budget_type === "hourly"
+            ? `$${data.budget_min}/hr${data.budget_max ? ` - $${data.budget_max}/hr` : ""}`
+            : `$${data.budget_min}${data.budget_max ? ` - $${data.budget_max}` : ""}`,
+      };
+      await api.post("/employer/jobs", payload);
       setSuccess("Job posted successfully!");
       reset();
-
       if (onSuccess) onSuccess();
     } catch (err: any) {
       setError(err.response?.data?.error || "Failed to post job");
@@ -75,15 +94,14 @@ export default function PostJobForm({ onSuccess }: PostJobFormProps) {
     }
   };
 
-  const industryOptions = [
+  const industries = [
     { value: 1, label: "Technology" },
     { value: 2, label: "Healthcare" },
     { value: 3, label: "Finance" },
     { value: 4, label: "Education" },
     { value: 5, label: "Retail" },
   ];
-
-  const employmentOptions = [
+  const employmentTypes = [
     { value: 1, label: "Full-time" },
     { value: 2, label: "Part-time" },
     { value: 3, label: "Remote" },
@@ -91,366 +109,261 @@ export default function PostJobForm({ onSuccess }: PostJobFormProps) {
     { value: 5, label: "Internship" },
   ];
 
-  const jobSiteOptions = [
-    { value: "Onsite", label: "Onsite" },
-    { value: "Remote", label: "Remote" },
-    { value: "Hybrid", label: "Hybrid" },
-  ];
-
-  const experienceOptions = [
-    { value: "Junior", label: "Junior" },
-    { value: "Mid", label: "Mid Level" },
-    { value: "Senior", label: "Senior" },
-    { value: "Lead", label: "Lead / Manager" },
-  ];
-
-  const educationOptions = [
-    { value: "High School", label: "High School" },
-    { value: "Bachelor", label: "Bachelor Degree" },
-    { value: "Master", label: "Master Degree" },
-    { value: "PhD", label: "PhD" },
-  ];
-
-  const genderOptions = [
-    { value: "Any", label: "Any" },
-    { value: "Male", label: "Male" },
-    { value: "Female", label: "Female" },
-  ];
-
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* LEFT SIDE */}
-        <div className="xl:col-span-2 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-          {/* HEADER */}
-          <div className="border-b border-gray-100 px-8 py-6">
-            <h1 className="text-3xl font-bold text-gray-900">Post a New Job</h1>
-
-            <p className="text-gray-500 mt-2">
-              Create a professional job listing to attract top candidates.
-            </p>
-          </div>
-
-          <div className="p-8">
-            {success && (
-              <div className="mb-6 bg-green-50 border border-green-200 text-green-700 rounded-2xl p-4 flex items-center gap-3">
-                <CheckCircle className="h-5 w-5" />
-                {success}
-              </div>
-            )}
-
-            {error && (
-              <div className="mb-6 bg-red-50 border border-red-200 text-red-700 rounded-2xl p-4 flex items-center gap-3">
-                <AlertCircle className="h-5 w-5" />
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-10">
-              {/* JOB DETAILS */}
-              <div>
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                    <Briefcase className="h-5 w-5 text-blue-600" />
-                  </div>
-
-                  <div>
-                    <h2 className="font-semibold text-lg text-gray-900">
-                      Job Details
-                    </h2>
-
-                    <p className="text-sm text-gray-500">
-                      Basic information about the role
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-6">
-                  {/* JOB TITLE */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Job Title *
-                    </label>
-
-                    <input
-                      {...register("title")}
-                      placeholder="e.g. Senior Frontend Developer"
-                      className="w-full h-14 rounded-2xl border border-gray-200 px-5 outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-
-                    {errors.title && (
-                      <p className="text-red-500 text-sm mt-2">
-                        {errors.title.message}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* GRID */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {/* INDUSTRY */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Industry *
-                      </label>
-
-                      <select
-                        {...register("industry_id", {
-                          valueAsNumber: true,
-                        })}
-                        className="w-full h-14 rounded-2xl border border-gray-200 px-5 outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Select Industry</option>
-
-                        {industryOptions.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* EMPLOYMENT TYPE */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Employment Type *
-                      </label>
-
-                      <select
-                        {...register("employment_type_id", {
-                          valueAsNumber: true,
-                        })}
-                        className="w-full h-14 rounded-2xl border border-gray-200 px-5 outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Select Type</option>
-
-                        {employmentOptions.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* JOB SITE */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Job Site
-                      </label>
-
-                      <div className="relative">
-                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-
-                        <select
-                          {...register("jobSite")}
-                          className="w-full h-14 rounded-2xl border border-gray-200 pl-11 pr-5 outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="">Select Mode</option>
-
-                          {jobSiteOptions.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* SALARY */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Salary Range
-                      </label>
-
-                      <div className="relative">
-                        <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-
-                        <input
-                          {...register("salary_range")}
-                          placeholder="$80k - $120k"
-                          className="w-full h-14 rounded-2xl border border-gray-200 pl-11 pr-5 outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* DESCRIPTION */}
-              <div>
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="h-10 w-10 rounded-xl bg-purple-100 flex items-center justify-center">
-                    <FileText className="h-5 w-5 text-purple-600" />
-                  </div>
-
-                  <div>
-                    <h2 className="font-semibold text-lg text-gray-900">
-                      Job Description
-                    </h2>
-
-                    <p className="text-sm text-gray-500">
-                      Explain responsibilities and requirements
-                    </p>
-                  </div>
-                </div>
-
-                <textarea
-                  {...register("description")}
-                  rows={8}
-                  placeholder="Describe the role, responsibilities, requirements, benefits..."
-                  className="w-full rounded-2xl border border-gray-200 px-5 py-4 outline-none focus:ring-2 focus:ring-blue-500"
+    <div className="max-w-4xl mx-auto">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+          <h2 className="text-xl font-bold text-white">Post a New Job</h2>
+          <p className="text-blue-100 text-sm">
+            Fill in the details – it takes only a few minutes
+          </p>
+        </div>
+        <div className="p-6">
+          {success && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-green-700 text-sm">
+              <CheckCircle className="h-4 w-4" />
+              {success}
+            </div>
+          )}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700 text-sm">
+              <AlertCircle className="h-4 w-4" />
+              {error}
+            </div>
+          )}
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {/* Job Title */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Job Title *
+              </label>
+              <div className="relative">
+                <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  {...register("title")}
+                  className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg"
+                  placeholder="e.g., Front End Developer Needed for Web Application Enhancement"
                 />
-
-                {errors.description && (
-                  <p className="text-red-500 text-sm mt-2">
-                    {errors.description.message}
+              </div>
+              {errors.title && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.title.message}
+                </p>
+              )}
+            </div>
+            {/* Industry & Employment Type */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Industry *
+                </label>
+                <select
+                  {...register("industry_id", { valueAsNumber: true })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="">Select industry</option>
+                  {industries.map((ind) => (
+                    <option key={ind.value} value={ind.value}>
+                      {ind.label}
+                    </option>
+                  ))}
+                </select>
+                {errors.industry_id && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.industry_id.message}
                   </p>
                 )}
               </div>
-
-              {/* EXTRA FILTERS */}
               <div>
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="h-10 w-10 rounded-xl bg-orange-100 flex items-center justify-center">
-                    <Sparkles className="h-5 w-5 text-orange-600" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Employment Type *
+                </label>
+                <select
+                  {...register("employment_type_id", { valueAsNumber: true })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="">Select type</option>
+                  {employmentTypes.map((et) => (
+                    <option key={et.value} value={et.value}>
+                      {et.label}
+                    </option>
+                  ))}
+                </select>
+                {errors.employment_type_id && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.employment_type_id.message}
+                  </p>
+                )}
+              </div>
+            </div>
+            {/* Location */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Location
+              </label>
+              <input
+                {...register("location")}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                placeholder="e.g., Remote / New York"
+              />
+            </div>
+            {/* Budget Section */}
+            <div className="border rounded-lg p-4 bg-gray-50">
+              <div className="flex items-center gap-4 mb-3">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    value="hourly"
+                    {...register("budget_type")}
+                  />{" "}
+                  Hourly
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    value="fixed"
+                    {...register("budget_type")}
+                  />{" "}
+                  Fixed Price
+                </label>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    {budgetType === "hourly"
+                      ? "Hourly Rate (USD)"
+                      : "Fixed Amount (USD)"}{" "}
+                    *
+                  </label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      type="number"
+                      step="0.01"
+                      {...register("budget_min", { valueAsNumber: true })}
+                      className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg"
+                      placeholder={
+                        budgetType === "hourly" ? "e.g., 20" : "e.g., 500"
+                      }
+                    />
                   </div>
-
-                  <div>
-                    <h2 className="font-semibold text-lg text-gray-900">
-                      Additional Filters
-                    </h2>
-
-                    <p className="text-sm text-gray-500">
-                      Optional candidate preferences
+                  {errors.budget_min && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.budget_min.message}
                     </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <select
-                    {...register("experienceLevel")}
-                    className="w-full h-14 rounded-2xl border border-gray-200 px-5 outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Experience Level</option>
-
-                    {experienceOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    {...register("educationLevel")}
-                    className="w-full h-14 rounded-2xl border border-gray-200 px-5 outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Education Level</option>
-
-                    {educationOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    {...register("genderPreference")}
-                    className="w-full h-14 rounded-2xl border border-gray-200 px-5 outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Gender Preference</option>
-
-                    {genderOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* FOOTER */}
-              <div className="border-t border-gray-100 pt-6 flex justify-between items-center">
-                <button
-                  type="button"
-                  className="px-6 py-3 rounded-2xl border border-gray-200 font-medium hover:bg-gray-50 transition"
-                >
-                  Save Draft
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="h-14 px-8 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center gap-2 transition-all"
-                >
-                  {loading ? (
-                    "Posting..."
-                  ) : (
-                    <>
-                      <Send className="h-5 w-5" />
-                      Publish Job
-                    </>
                   )}
-                </button>
+                </div>
+                {budgetType === "hourly" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Max Hourly Rate (optional)
+                    </label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="number"
+                        step="0.01"
+                        {...register("budget_max", { valueAsNumber: true })}
+                        className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg"
+                        placeholder="e.g., 25"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
-            </form>
-          </div>
-        </div>
-
-        {/* RIGHT SIDEBAR */}
-        <div className="space-y-6">
-          {/* HIGHLIGHTS */}
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="h-10 w-10 rounded-xl bg-yellow-100 flex items-center justify-center">
-                <Sparkles className="h-5 w-5 text-yellow-600" />
-              </div>
-
+            </div>
+            {/* Duration & Experience */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <h3 className="font-semibold text-gray-900">Job Highlights</h3>
-
-                <p className="text-sm text-gray-500">
-                  Make your post stand out
-                </p>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Duration
+                </label>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <select
+                    {...register("duration")}
+                    className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg"
+                  >
+                    <option value="">Select duration</option>
+                    <option value="Less than 1 month">Less than 1 month</option>
+                    <option value="1-3 months">1-3 months</option>
+                    <option value="3-6 months">3-6 months</option>
+                    <option value="More than 6 months">
+                      More than 6 months
+                    </option>
+                  </select>
+                </div>
               </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="border border-gray-200 rounded-2xl px-4 py-3 text-sm text-gray-600">
-                Flexible working hours
-              </div>
-
-              <div className="border border-gray-200 rounded-2xl px-4 py-3 text-sm text-gray-600">
-                Health insurance
-              </div>
-
-              <div className="border border-gray-200 rounded-2xl px-4 py-3 text-sm text-gray-600">
-                Career growth opportunities
-              </div>
-            </div>
-          </div>
-
-          {/* PREVIEW */}
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                <Eye className="h-5 w-5 text-blue-600" />
-              </div>
-
               <div>
-                <h3 className="font-semibold text-gray-900">Preview</h3>
-
-                <p className="text-sm text-gray-500">
-                  See how candidates view your job
-                </p>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Experience Level
+                </label>
+                <div className="relative">
+                  <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <select
+                    {...register("experience_level")}
+                    className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg"
+                  >
+                    <option value="Entry">Entry Level</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Expert">Expert</option>
+                  </select>
+                </div>
               </div>
             </div>
-
-            <button
-              type="button"
-              className="w-full h-12 rounded-2xl border border-blue-200 text-blue-600 font-medium hover:bg-blue-50 transition"
-            >
-              Preview Job Post
-            </button>
-          </div>
+            {/* Skills */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Skills (comma separated)
+              </label>
+              <input
+                {...register("skills")}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                placeholder="e.g., HTML, CSS, JavaScript, React"
+              />
+            </div>
+            {/* Job Description */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Job Description *
+              </label>
+              <textarea
+                {...register("description")}
+                rows={8}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                placeholder="Describe the project, responsibilities, requirements, and what you're looking for..."
+              />
+              {errors.description && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.description.message}
+                </p>
+              )}
+              <p className="text-xs text-gray-400 mt-1">
+                Minimum 50 characters. Be specific.
+              </p>
+            </div>
+            {/* Resume Requirement */}
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                {...register("require_resume")}
+                className="rounded border-gray-300"
+              />
+              <label className="text-sm text-gray-700">
+                Require applicants to upload a resume
+              </label>
+            </div>
+            {/* Submit */}
+            <div className="flex justify-end pt-4">
+              <button
+                type="submit"
+                disabled={loading}
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
+              >
+                {loading ? "Posting..." : "Post Job"}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

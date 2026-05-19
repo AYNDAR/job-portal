@@ -15,7 +15,7 @@ import {
   getEmployerApplicationStats,
   updateEmployerProfile,
   getEmployerProfile,
-} from "../controllers/employer-Controller";
+} from "../controllers/employerController";
 
 const router = Router();
 

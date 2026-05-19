@@ -14,16 +14,31 @@ export const postJob = async (req: AuthRequest, res: Response) => {
       experienceLevel,
       educationLevel,
       genderPreference,
+      requirements,
+      application_deadline,
+      show_salary,
+      highlight_job,
+      allow_remote,
+      budget_type,
+      budget_min,
+      budget_max,
+      duration,
+      skills,
+      require_resume,
     } = req.body;
+
+    // Get employer profile
     const employerProfile = await prisma.employerProfile.findUnique({
       where: { user_id: req.user?.userId },
     });
-    if (!employerProfile)
+    if (!employerProfile) {
       return res.status(403).json({ error: "Employer profile not found" });
+    }
 
     const draftStatus = await prisma.jobPostStatus.findFirst({
       where: { status_name: "Draft" },
     });
+
     const job = await prisma.jobPost.create({
       data: {
         title,
@@ -36,6 +51,19 @@ export const postJob = async (req: AuthRequest, res: Response) => {
         experienceLevel,
         educationLevel,
         genderPreference,
+        requirements,
+        application_deadline: application_deadline
+          ? new Date(application_deadline)
+          : null,
+        show_salary: show_salary ?? true,
+        highlight_job: highlight_job ?? false,
+        allow_remote: allow_remote ?? false,
+        budget_type,
+        budget_min,
+        budget_max,
+        duration,
+        skills: skills || [],
+        require_resume: require_resume ?? false,
         status_id: draftStatus!.id,
       },
     });

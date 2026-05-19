@@ -146,7 +146,13 @@ export default function EmployerJobs({
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
                       <button
-                        onClick={() => onSelectJob(job.id)}
+                        onClick={() => {
+                          console.log(
+                            "🟠 View Applicants clicked for job ID:",
+                            job.id,
+                          );
+                          onSelectJob(job.id);
+                        }}
                         className="text-blue-600 hover:text-blue-800"
                       >
                         View Applicants
