@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -10,7 +9,6 @@ import {
   Building,
   Settings,
   Bell,
-  Plus,
   Eye,
   Calendar,
   UserCheck,
@@ -34,23 +32,35 @@ import PostJobForm from "../../components/employer/PostJobForm";
 import EmployerJobs from "../../components/employer/EmployerJobs";
 import ApplicantsList from "../../components/employer/ApplicantsList";
 
-// Types
-interface StatCard {
-  title: string;
-  value: number;
-  icon: JSX.Element;
-  trend: string;
-  color: string;
-}
-
-interface RecentJob {
+// Type for raw job from API
+interface ApiJob {
   id: string;
   title: string;
-  location?: string;
-  employment_type?: string;
-  applicationsCount: number;
-  status: string;
+  jobSite?: string;
+  employment_type?: { type_name: string };
+  applicationsCount?: number;
+  status?: { status_name: string };
 }
+
+// Type for dashboard‑ready job (after transformation)
+interface DashboardJob {
+  id: string;
+  title: string;
+  location: string;
+  employment_type: string;
+  applicationsCount: number;
+  status: string; // "Open" or "Draft"
+}
+
+type ActiveView =
+  | "dashboard"
+  | "jobs"
+  | "post"
+  | "applicants"
+  | "profile"
+  | "analytics"
+  | "notifications"
+  | "settings";
 
 interface ChartData {
   month: string;
@@ -62,7 +72,7 @@ export default function EmployerDashboard() {
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState<ActiveView>("dashboard");
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [refreshJobs, setRefreshJobs] = useState(false);
   const [stats, setStats] = useState({
@@ -71,7 +81,7 @@ export default function EmployerDashboard() {
     shortlisted: 0,
     interviewsScheduled: 0,
   });
-  const [recentJobs, setRecentJobs] = useState<RecentJob[]>([]);
+  const [recentJobs, setRecentJobs] = useState<DashboardJob[]>([]);
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -83,18 +93,13 @@ export default function EmployerDashboard() {
         api.get("/employer/stats/applications"),
       ]);
       setStats(statsRes.data);
-      const jobsWithCount = jobsRes.data.map((job: any) => ({
+      const jobsWithCount: DashboardJob[] = jobsRes.data.map((job: ApiJob) => ({
         id: job.id,
         title: job.title,
         location: job.jobSite || "Remote",
-        employment_type: job.employment_type?.type_name,
+        employment_type: job.employment_type?.type_name || "Full-time",
         applicationsCount: job.applicationsCount || 0,
-        status:
-          job.status?.status_name === "Open"
-            ? "Open"
-            : job.status?.status_name === "Draft"
-              ? "Draft"
-              : "Closed",
+        status: job.status?.status_name === "Open" ? "Open" : "Draft",
       }));
       setRecentJobs(jobsWithCount.slice(0, 5));
       setChartData(chartRes.data.slice(-7));
@@ -109,48 +114,39 @@ export default function EmployerDashboard() {
     fetchDashboardData();
   }, []);
 
-  const handleJobPosted = () => {
-    setRefreshJobs((prev) => !prev);
-    fetchDashboardData();
-  };
-
-  const handleJobPublished = () => {
-    fetchDashboardData();
-  };
-
   const handleLogout = () => {
     dispatch(logout());
     navigate("/login");
   };
 
-  const statsCards: StatCard[] = [
+  const statsCards = [
     {
       title: "Active jobs",
       value: stats.activeJobs,
       icon: <Briefcase className="h-6 w-6 text-blue-500" />,
       trend: "+2 this month",
-      color: "bg-blue-50",
+      bg: "bg-blue-50",
     },
     {
       title: "Total applicants",
       value: stats.totalApplications,
       icon: <UsersRound className="h-6 w-6 text-green-500" />,
       trend: "+18 this week",
-      color: "bg-green-50",
+      bg: "bg-green-50",
     },
     {
       title: "Shortlisted",
       value: stats.shortlisted,
       icon: <UserCheck className="h-6 w-6 text-yellow-500" />,
       trend: "pending review",
-      color: "bg-yellow-50",
+      bg: "bg-yellow-50",
     },
     {
       title: "Interviews",
       value: stats.interviewsScheduled,
       icon: <Calendar className="h-6 w-6 text-purple-500" />,
       trend: "+2 this week",
-      color: "bg-purple-50",
+      bg: "bg-purple-50",
     },
   ];
 
@@ -159,60 +155,39 @@ export default function EmployerDashboard() {
       id: "dashboard",
       name: "Dashboard",
       icon: <LayoutDashboard className="h-5 w-5" />,
-      section: "MAIN",
     },
-    {
-      id: "jobs",
-      name: "My jobs",
-      icon: <Briefcase className="h-5 w-5" />,
-      section: "MAIN",
-    },
+    { id: "jobs", name: "My jobs", icon: <Briefcase className="h-5 w-5" /> },
     {
       id: "post",
       name: "Post a job",
       icon: <PlusCircle className="h-5 w-5" />,
-      section: "MAIN",
     },
     {
       id: "applicants",
       name: "Applicants",
       icon: <UsersRound className="h-5 w-5" />,
-      section: "MAIN",
     },
     {
       id: "profile",
       name: "Company profile",
       icon: <Building className="h-5 w-5" />,
-      section: "COMPANY",
     },
     {
       id: "analytics",
       name: "Analytics",
       icon: <BarChart className="h-5 w-5" />,
-      section: "COMPANY",
     },
     {
       id: "notifications",
       name: "Notifications",
       icon: <Bell className="h-5 w-5" />,
-      section: "COMPANY",
     },
     {
       id: "settings",
       name: "Settings",
       icon: <Settings className="h-5 w-5" />,
-      section: "ACCOUNT",
     },
   ];
-
-  const groupedMenu = menuItems.reduce(
-    (acc, item) => {
-      if (!acc[item.section]) acc[item.section] = [];
-      acc[item.section].push(item);
-      return acc;
-    },
-    {} as Record<string, typeof menuItems>,
-  );
 
   const sidebarWidth = sidebarOpen ? "w-64" : "w-16";
 
@@ -226,6 +201,9 @@ export default function EmployerDashboard() {
         return "bg-gray-100 text-gray-600";
     }
   };
+
+  const handleJobPosted = () => setRefreshJobs((prev) => !prev);
+  const handleJobPublished = () => fetchDashboardData();
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -250,44 +228,20 @@ export default function EmployerDashboard() {
             )}
           </button>
         </div>
-        <nav className="flex-1 p-4 space-y-6">
-          {Object.entries(groupedMenu).map(([section, items]) => (
-            <div key={section}>
-              {sidebarOpen && (
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                  {section}
-                </h3>
-              )}
-              <div className="space-y-1">
-                {items.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      if (item.id === "jobs") setActiveTab("jobs");
-                      else if (item.id === "post") setActiveTab("post");
-                      else if (item.id === "applicants")
-                        setActiveTab("applicants");
-                      else if (item.id === "profile") setActiveTab("profile");
-                      else if (item.id === "analytics")
-                        setActiveTab("analytics");
-                      else if (item.id === "notifications")
-                        setActiveTab("notifications");
-                      else if (item.id === "settings") setActiveTab("settings");
-                      else setActiveTab(item.id);
-                    }}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                      activeTab === item.id
-                        ? "bg-blue-50 text-blue-600"
-                        : "text-gray-700 hover:bg-gray-100"
-                    }`}
-                    title={!sidebarOpen ? item.name : ""}
-                  >
-                    {item.icon}
-                    {sidebarOpen && <span>{item.name}</span>}
-                  </button>
-                ))}
-              </div>
-            </div>
+        <nav className="flex-1 p-4 space-y-1">
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id as ActiveView)}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                activeTab === item.id
+                  ? "bg-blue-50 text-blue-600"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              {item.icon}
+              {sidebarOpen && <span>{item.name}</span>}
+            </button>
           ))}
         </nav>
         <div className="p-4 border-t border-gray-200">
@@ -307,10 +261,9 @@ export default function EmployerDashboard() {
           {sidebarOpen && (
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50"
             >
-              <LogOut className="h-4 w-4" />
-              Logout
+              <LogOut className="h-4 w-4" /> Logout
             </button>
           )}
         </div>
@@ -320,7 +273,7 @@ export default function EmployerDashboard() {
       <main className="flex-1 overflow-y-auto p-6">
         {activeTab === "dashboard" && (
           <>
-            {/* Welcome Header with Post a Job button */}
+            {/* Header */}
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
@@ -335,7 +288,7 @@ export default function EmployerDashboard() {
                 onClick={() => setActiveTab("post")}
                 className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
               >
-                <Plus className="h-4 w-4" /> Post a job
+                <PlusCircle className="h-4 w-4" /> Post a job
               </button>
             </div>
 
@@ -344,7 +297,7 @@ export default function EmployerDashboard() {
               {statsCards.map((card) => (
                 <div
                   key={card.title}
-                  className={`${card.color} p-5 rounded-xl shadow-sm`}
+                  className={`${card.bg} p-5 rounded-xl shadow-sm`}
                 >
                   <div className="flex justify-between items-start">
                     <div>
@@ -366,7 +319,7 @@ export default function EmployerDashboard() {
               ))}
             </div>
 
-            {/* Application Trends Chart + Quick Actions */}
+            {/* Chart + Quick Actions */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
               <div className="lg:col-span-2 bg-white p-5 rounded-xl shadow-sm border border-gray-200">
                 <div className="flex justify-between items-center mb-4">
@@ -407,19 +360,19 @@ export default function EmployerDashboard() {
                 <div className="space-y-2">
                   <button
                     onClick={() => setActiveTab("post")}
-                    className="w-full flex items-center gap-2 p-3 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition"
+                    className="w-full flex items-center gap-2 p-3 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100"
                   >
                     <PlusCircle className="h-5 w-5" /> Post a new job
                   </button>
                   <button
                     onClick={() => setActiveTab("applicants")}
-                    className="w-full flex items-center gap-2 p-3 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition"
+                    className="w-full flex items-center gap-2 p-3 rounded-lg bg-green-50 text-green-700 hover:bg-green-100"
                   >
                     <Eye className="h-5 w-5" /> View applicants
                   </button>
                   <button
                     onClick={() => setActiveTab("jobs")}
-                    className="w-full flex items-center gap-2 p-3 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 transition"
+                    className="w-full flex items-center gap-2 p-3 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100"
                   >
                     <Briefcase className="h-5 w-5" /> Browse my jobs
                   </button>
@@ -427,7 +380,7 @@ export default function EmployerDashboard() {
               </div>
             </div>
 
-            {/* Recent Job Posts with "View all" link */}
+            {/* Recent Job Posts */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-200 flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-gray-800">
@@ -465,8 +418,8 @@ export default function EmployerDashboard() {
                           {job.title}
                         </h4>
                         <p className="text-sm text-gray-500">
-                          {job.location} • {job.employment_type || "Full-time"}{" "}
-                          • {job.applicationsCount} applicants
+                          {job.location} • {job.employment_type} •{" "}
+                          {job.applicationsCount} applicants
                         </p>
                       </div>
                       <span
@@ -482,7 +435,6 @@ export default function EmployerDashboard() {
           </>
         )}
 
-        {/* Other tabs – import actual components */}
         {activeTab === "jobs" && (
           <EmployerJobs
             onSelectJob={(jobId: string) => {
@@ -496,27 +448,31 @@ export default function EmployerDashboard() {
         {activeTab === "post" && <PostJobForm onSuccess={handleJobPosted} />}
         {activeTab === "applicants" &&
           (selectedJobId ? (
-            <ApplicantsList jobId={selectedJobId} />
+            <ApplicantsList key={selectedJobId} jobId={selectedJobId} />
           ) : (
             <div className="text-gray-500">
               Select a job from "My Jobs" to view applicants.
             </div>
           ))}
         {activeTab === "profile" && (
-          <div className="bg-white p-6 rounded-xl">
-            Company Profile (coming soon)
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            Company Profile – coming soon
           </div>
         )}
         {activeTab === "analytics" && (
-          <div className="bg-white p-6 rounded-xl">Analytics (coming soon)</div>
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            Analytics – coming soon
+          </div>
         )}
         {activeTab === "notifications" && (
-          <div className="bg-white p-6 rounded-xl">
-            Notifications (coming soon)
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            Notifications – coming soon
           </div>
         )}
         {activeTab === "settings" && (
-          <div className="bg-white p-6 rounded-xl">Settings (coming soon)</div>
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            Settings – coming soon
+          </div>
         )}
       </main>
     </div>

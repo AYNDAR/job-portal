@@ -11,7 +11,6 @@ import {
   DollarSign,
   Clock,
   Users,
-  Upload,
 } from "lucide-react";
 
 const jobSchema = z.object({
@@ -31,7 +30,11 @@ const jobSchema = z.object({
 
 type JobFormData = z.infer<typeof jobSchema>;
 
-export default function PostJobForm({ onSuccess }: { onSuccess?: () => void }) {
+export default function PostJobFormPage({
+  onSuccess,
+}: {
+  onSuccess?: () => void;
+}) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
@@ -87,8 +90,9 @@ export default function PostJobForm({ onSuccess }: { onSuccess?: () => void }) {
       setSuccess("Job posted successfully!");
       reset();
       if (onSuccess) onSuccess();
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to post job");
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      setError(error.response?.data?.error || "Failed to post job");
     } finally {
       setLoading(false);
     }
@@ -151,7 +155,6 @@ export default function PostJobForm({ onSuccess }: { onSuccess?: () => void }) {
                 </p>
               )}
             </div>
-            {/* Industry & Employment Type */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -196,7 +199,6 @@ export default function PostJobForm({ onSuccess }: { onSuccess?: () => void }) {
                 )}
               </div>
             </div>
-            {/* Location */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Location
@@ -207,7 +209,6 @@ export default function PostJobForm({ onSuccess }: { onSuccess?: () => void }) {
                 placeholder="e.g., Remote / New York"
               />
             </div>
-            {/* Budget Section */}
             <div className="border rounded-lg p-4 bg-gray-50">
               <div className="flex items-center gap-4 mb-3">
                 <label className="flex items-center gap-2">
@@ -272,7 +273,6 @@ export default function PostJobForm({ onSuccess }: { onSuccess?: () => void }) {
                 )}
               </div>
             </div>
-            {/* Duration & Experience */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -311,7 +311,6 @@ export default function PostJobForm({ onSuccess }: { onSuccess?: () => void }) {
                 </div>
               </div>
             </div>
-            {/* Skills */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Skills (comma separated)
@@ -322,7 +321,6 @@ export default function PostJobForm({ onSuccess }: { onSuccess?: () => void }) {
                 placeholder="e.g., HTML, CSS, JavaScript, React"
               />
             </div>
-            {/* Job Description */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Job Description *
@@ -342,7 +340,6 @@ export default function PostJobForm({ onSuccess }: { onSuccess?: () => void }) {
                 Minimum 50 characters. Be specific.
               </p>
             </div>
-            {/* Resume Requirement */}
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -353,7 +350,6 @@ export default function PostJobForm({ onSuccess }: { onSuccess?: () => void }) {
                 Require applicants to upload a resume
               </label>
             </div>
-            {/* Submit */}
             <div className="flex justify-end pt-4">
               <button
                 type="submit"

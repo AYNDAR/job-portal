@@ -7,11 +7,12 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import JobSearch from "./pages/JobSearch";
 import JobDetails from "./pages/JobDetails";
+
 import Apply from "./pages/ApplyForm";
 import Bookmarks from "./pages/Bookmarks";
 import Notifications from "./pages/NotificationsPage";
 import MyApplications from "./pages/MyApplications";
-import JobSeekerDashboard from "./features/jobSeeker/JobSeekerDashboard";
+import JobSeekerDashboard from "./features/jobSeeker/pages/Dashboard";
 import SuperAdminDashboard from "./features/superAdmin/SuperAdminDashboard";
 import EmployerDashboard from "./features/employer/EmployerDashboard";
 import AdminDashboard from "./features/admin/AdminDashboard";
