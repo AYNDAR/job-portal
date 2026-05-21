@@ -18,15 +18,17 @@ import {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
+    Open: "bg-green-50 text-green-700 border-green-200",
     Active: "bg-green-50 text-green-700 border-green-200",
     Published: "bg-green-50 text-green-700 border-green-200",
     Draft: "bg-gray-50 text-gray-600 border-gray-200",
     Closed: "bg-red-50 text-red-600 border-red-200",
     Pending: "bg-yellow-50 text-yellow-700 border-yellow-200",
   };
-  const cls = map[status] ?? "bg-gray-50 text-gray-600 border-gray-200";
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${cls}`}>
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${map[status] ?? "bg-gray-50 text-gray-600 border-gray-200"}`}
+    >
       {status}
     </span>
   );
@@ -39,7 +41,7 @@ export default function EmployerJobsPage() {
   const [filtered, setFiltered] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
+  const [statusFilter, setStatus] = useState("All");
   const [publishing, setPublishing] = useState<string | null>(null);
 
   const fetchJobs = async () => {
@@ -60,16 +62,12 @@ export default function EmployerJobsPage() {
 
   useEffect(() => {
     let result = [...jobs];
-    if (search) {
+    if (search)
       result = result.filter((j) =>
-        j.title.toLowerCase().includes(search.toLowerCase())
+        j.title.toLowerCase().includes(search.toLowerCase()),
       );
-    }
-    if (statusFilter !== "All") {
-      result = result.filter(
-        (j) => j.status?.status_name === statusFilter
-      );
-    }
+    if (statusFilter !== "All")
+      result = result.filter((j) => j.status?.status_name === statusFilter);
     setFiltered(result);
   }, [search, statusFilter, jobs]);
 
@@ -87,7 +85,15 @@ export default function EmployerJobsPage() {
     }
   };
 
-  const statuses = ["All", "Active", "Draft", "Closed", "Pending", "Published"];
+  const deleteJob = async (jobId: string) => {
+    if (!confirm("Delete this job post?")) return;
+    try {
+      await api.delete(`/employer/jobs/${jobId}`);
+      await fetchJobs();
+    } catch {
+      alert("Failed to delete job.");
+    }
+  };
 
   return (
     <div className="space-y-5 max-w-5xl mx-auto">
@@ -129,10 +135,18 @@ export default function EmployerJobsPage() {
           />
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => setStatus(e.target.value)}
             className="pl-8 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 appearance-none bg-white cursor-pointer"
           >
-            {statuses.map((s) => (
+            {[
+              "All",
+              "Open",
+              "Active",
+              "Draft",
+              "Closed",
+              "Pending",
+              "Published",
+            ].map((s) => (
               <option key={s}>{s}</option>
             ))}
           </select>
@@ -180,14 +194,11 @@ export default function EmployerJobsPage() {
             {filtered.map((job) => (
               <div
                 key={job.id}
-                className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors group"
+                className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition group"
               >
-                {/* Icon */}
-                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
                   <Briefcase size={16} className="text-blue-500" />
                 </div>
-
-                {/* Info */}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900 truncate">
                     {job.title}
@@ -195,20 +206,17 @@ export default function EmployerJobsPage() {
                   <div className="flex flex-wrap items-center gap-3 mt-0.5">
                     {job.industry?.industry_name && (
                       <span className="flex items-center gap-1 text-xs text-gray-400">
-                        <Briefcase size={11} />
-                        {job.industry.industry_name}
+                        <Briefcase size={11} /> {job.industry.industry_name}
                       </span>
                     )}
                     {job.jobSite && (
                       <span className="flex items-center gap-1 text-xs text-gray-400">
-                        <MapPin size={11} />
-                        {job.jobSite}
+                        <MapPin size={11} /> {job.jobSite}
                       </span>
                     )}
                     {job.employment_type?.type_name && (
                       <span className="flex items-center gap-1 text-xs text-gray-400">
-                        <Clock size={11} />
-                        {job.employment_type.type_name}
+                        <Clock size={11} /> {job.employment_type.type_name}
                       </span>
                     )}
                     <span className="text-xs text-gray-300">
@@ -216,18 +224,12 @@ export default function EmployerJobsPage() {
                     </span>
                   </div>
                 </div>
-
-                {/* Salary */}
                 {job.salary_range && (
                   <span className="hidden md:block text-sm text-gray-600 font-medium">
                     {job.salary_range}
                   </span>
                 )}
-
-                {/* Status */}
                 <StatusBadge status={job.status?.status_name ?? "Draft"} />
-
-                {/* Actions */}
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => navigate("/employer/dashboard/applicants")}
@@ -247,6 +249,7 @@ export default function EmployerJobsPage() {
                     </button>
                   )}
                   <button
+                    onClick={() => deleteJob(job.id)}
                     title="Delete job"
                     className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
                   >

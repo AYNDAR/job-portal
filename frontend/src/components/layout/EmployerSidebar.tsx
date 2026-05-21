@@ -1,6 +1,4 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { useAppDispatch, useAppSelector } from "../../store/hooks";
-import { logout } from "../../store/authSlice";
 import {
   LayoutDashboard,
   Briefcase,
@@ -74,21 +72,22 @@ const navSections = [
 ];
 
 export default function EmployerSidebar() {
-  const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { user } = useAppSelector((state) => state.auth);
-  const companyName = user?.email?.split("@")[0] ?? "Employer";
-  const initials = companyName.slice(0, 2).toUpperCase();
+  const userRaw = localStorage.getItem("user");
+  const user = userRaw ? JSON.parse(userRaw) : null;
+  const name = user?.email?.split("@")[0] ?? "Employer";
+  const initials = name.slice(0, 2).toUpperCase();
 
   return (
     <aside className="w-60 min-h-screen bg-white border-r border-gray-100 flex flex-col sticky top-0 h-screen overflow-y-auto">
-      <div className="px-5 py-5 border-b border-gray-100">
+      <div className="px-5 py-5 border-b border-gray-100 flex-shrink-0">
         <span className="text-xl font-bold text-blue-600 tracking-tight">
           JobPortal
         </span>
-        <span className="ml-1 text-xs text-gray-400 font-medium">Employer</span>
+        <span className="ml-1.5 text-xs text-gray-400 font-medium">
+          Employer
+        </span>
       </div>
-
       <nav className="flex-1 py-4 px-3 space-y-5 overflow-y-auto">
         {navSections.map((section) => (
           <div key={section.title}>
@@ -100,9 +99,9 @@ export default function EmployerSidebar() {
                 <li key={item.path}>
                   <NavLink
                     to={item.path}
-                    end={"end" in item ? item.end : false}
+                    end={"end" in item ? (item as any).end : false}
                     className={({ isActive }) =>
-                      `group flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
+                      `group flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                         isActive
                           ? "bg-blue-50 text-blue-600"
                           : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -133,27 +132,25 @@ export default function EmployerSidebar() {
           </div>
         ))}
       </nav>
-
-      <div className="border-t border-gray-100 px-3 py-3">
+      <div className="border-t border-gray-100 px-3 py-3 flex-shrink-0">
         <div className="flex items-center gap-3 px-2 py-2 rounded-lg">
-          <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-semibold shrink-0">
+          <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-semibold flex-shrink-0">
             {initials}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-800 truncate">
-              {companyName}
-            </p>
+            <p className="text-sm font-medium text-gray-800 truncate">{name}</p>
             <p className="text-xs text-gray-400 truncate">{user?.email}</p>
           </div>
         </div>
         <button
           onClick={() => {
-            dispatch(logout());
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
             navigate("/login");
           }}
-          className="mt-1 w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 transition-colors font-medium"
+          className="mt-1 w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 transition font-medium"
         >
-          <LogOut size={15} /> Logout
+          <LogOut size={15} /> Sign out
         </button>
       </div>
     </aside>

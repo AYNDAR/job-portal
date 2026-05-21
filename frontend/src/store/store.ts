@@ -1,21 +1,27 @@
 import { configureStore } from "@reduxjs/toolkit";
-import authReducer from "./authSlice";
+import authReducer from "../features/auth/authSlice";
+import profileReducer from "../features/auth/profileSlice";
+import jobSeekerReducer from "../features/jobSeeker/jobSeekerSlice";
+import messagesReducer from "../features/messages/messagesSlice";
 import jobsReducer from "./jobsSlice";
 import bookmarksReducer from "./bookmarksSlice";
 import notificationsReducer from "./notificationsSlice";
-import adminReducer from "../features/admin/adminSlice";
-// employerReducer removed – employer dashboard uses direct API calls
-// Ensure applicationsSlice exists, otherwise comment out
-import applicationsReducer from "../features/applications/applicationsSlice";
+import applicationReducer from "./applicationSlice";
+import adminReducer from "./adminSlice";
+import employerReducer from "./employerSlice";
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
+    profile: profileReducer,
+    jobSeeker: jobSeekerReducer,
+    messages: messagesReducer,
     jobs: jobsReducer,
     bookmarks: bookmarksReducer,
     notifications: notificationsReducer,
+    application: applicationReducer,
     admin: adminReducer,
-    applications: applicationsReducer,
+    employer: employerReducer,
   },
 });
 

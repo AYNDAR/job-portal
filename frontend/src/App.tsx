@@ -1,112 +1,138 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { Provider } from "react-redux";
-import { store } from "./store/store";
-
+import { Routes, Route } from "react-router-dom";
 import Layout from "./components/layout/Layout";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import JobSearch from "./pages/JobSearch";
-import JobDetails from "./pages/JobDetails";
-
-import Apply from "./pages/ApplyForm";
-import Bookmarks from "./pages/Bookmarks";
-import Notifications from "./pages/NotificationsPage";
-import MyApplications from "./pages/MyApplications";
+import Login from "./features/auth/Login";
+import Register from "./features/auth/Register";
+import JobSearch from "./features/jobs/JobSearch";
+import JobDetailsPage from "./features/jobs/JobDetailsPage";
+import ApplyForm from "./features/applications/ApplyForm";
+import MyApplications from "./features/applications/MyApplications";
+import BookmarksPage from "./features/bookmarks/BookmarksPage";
+import NotificationsPage from "./features/notifications/NotificationsPage";
 import JobSeekerDashboard from "./features/jobSeeker/pages/Dashboard";
+import StatusPage from "./features/jobSeeker/pages/Status";
+import SettingsPage from "./features/jobSeeker/pages/Settings";
 import SuperAdminDashboard from "./features/superAdmin/SuperAdminDashboard";
-import EmployerDashboard from "./features/employer/EmployerDashboard";
 import AdminDashboard from "./features/admin/AdminDashboard";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 
+// Employer dashboard
+import EmployerLayout from "./components/employer/EmployerLayout";
+import EmployerOverview from "./features/employer/EmployerOverview";
+import EmployerJobsPage from "./features/employer/EmployerJobsPage";
+import EmployerApplicantsPage from "./features/employer/EmployerApplicantsPage";
+import PostJobForm from "./features/employer/PostJobForm";
+import EmployerAnalyticsPage from "./features/employer/EmployerAnalyticsPage";
+import CompanyProfilePage from "./features/employer/CompanyProfilePage";
+import EmployerSettingsPage from "./features/employer/EmployerSettingsPage";
+
 function App() {
   return (
-    <Provider store={store}>
-      <BrowserRouter>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
 
-          {/* Admin routes – no outer Layout */}
-          <Route
-            path="/admin/*"
-            element={
-              <ProtectedRoute allowedRoles={["Admin", "Super Admin"]}>
-                <AdminDashboard />
-              </ProtectedRoute>
-            }
-          />
+      {/* Admin */}
+      <Route
+        path="/admin/*"
+        element={
+          <ProtectedRoute allowedRoles={["Admin", "Super Admin"]}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
 
-          {/* Super Admin (if separate) */}
-          <Route
-            path="/super-admin"
-            element={
-              <ProtectedRoute allowedRoles={["Super Admin"]}>
-                <SuperAdminDashboard />
-              </ProtectedRoute>
-            }
-          />
+      {/* Super Admin */}
+      <Route
+        path="/super-admin"
+        element={
+          <ProtectedRoute allowedRoles={["Super Admin"]}>
+            <SuperAdminDashboard />
+          </ProtectedRoute>
+        }
+      />
 
-          {/* Layout‑protected routes */}
-          <Route element={<Layout />}>
-            <Route path="/" element={<JobSearch />} />
-            <Route path="/jobs" element={<JobSearch />} />
-            <Route path="/jobs/:id" element={<JobDetails />} />
+      {/* Employer dashboard — nested routes with sidebar */}
+      <Route
+        path="/employer/dashboard"
+        element={
+          <ProtectedRoute allowedRoles={["Employer"]}>
+            <EmployerLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<EmployerOverview />} />
+        <Route path="jobs" element={<EmployerJobsPage />} />
+        <Route path="post" element={<PostJobForm />} />
+        <Route path="applicants" element={<EmployerApplicantsPage />} />
+        <Route path="analytics" element={<EmployerAnalyticsPage />} />
+        <Route path="profile" element={<CompanyProfilePage />} />
+        <Route path="settings" element={<EmployerSettingsPage />} />
+      </Route>
 
-            <Route
-              path="/apply/:id"
-              element={
-                <ProtectedRoute allowedRoles={["Job Seeker"]}>
-                  <Apply />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute allowedRoles={["Job Seeker"]}>
-                  <JobSeekerDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/bookmarks"
-              element={
-                <ProtectedRoute allowedRoles={["Job Seeker"]}>
-                  <Bookmarks />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/my-applications"
-              element={
-                <ProtectedRoute allowedRoles={["Job Seeker"]}>
-                  <MyApplications />
-                </ProtectedRoute>
-              }
-            />
+      {/* Main layout */}
+      <Route element={<Layout />}>
+        <Route path="/" element={<JobSearch />} />
+        <Route path="/jobs" element={<JobSearch />} />
+        <Route path="/jobs/:id" element={<JobDetailsPage />} />
 
-            <Route
-              path="/employer/dashboard/*"
-              element={
-                <ProtectedRoute allowedRoles={["Employer"]}>
-                  <EmployerDashboard />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/notifications"
-              element={
-                <ProtectedRoute>
-                  <Notifications />
-                </ProtectedRoute>
-              }
-            />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </Provider>
+        <Route
+          path="/apply/:id"
+          element={
+            <ProtectedRoute allowedRoles={["Job Seeker"]}>
+              <ApplyForm />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["Job Seeker"]}>
+              <JobSeekerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/bookmarks"
+          element={
+            <ProtectedRoute allowedRoles={["Job Seeker"]}>
+              <BookmarksPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/my-applications"
+          element={
+            <ProtectedRoute allowedRoles={["Job Seeker"]}>
+              <MyApplications />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute>
+              <NotificationsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/status"
+          element={
+            <ProtectedRoute allowedRoles={["Job Seeker"]}>
+              <StatusPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute allowedRoles={["Job Seeker"]}>
+              <SettingsPage />
+            </ProtectedRoute>
+          }
+        />
+      </Route>
+    </Routes>
   );
 }
 

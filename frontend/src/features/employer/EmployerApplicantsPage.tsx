@@ -9,7 +9,6 @@ import {
   ChevronDown,
   ExternalLink,
   FileText,
-  User,
   ChevronRight,
 } from "lucide-react";
 
@@ -21,9 +20,10 @@ function StatusBadge({ status }: { status: string }) {
     Rejected: "bg-red-50 text-red-600 border-red-200",
     Shortlisted: "bg-violet-50 text-violet-700 border-violet-200",
   };
-  const cls = map[status] ?? "bg-gray-50 text-gray-600 border-gray-200";
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${cls}`}>
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${map[status] ?? "bg-gray-50 text-gray-600 border-gray-200"}`}
+    >
       {status}
     </span>
   );
@@ -49,13 +49,14 @@ const avatarColors = [
 export default function EmployerApplicantsPage() {
   const { token } = useAppSelector((state) => state.auth);
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [selectedJobId, setSelectedJobId] = useState<string>("");
-  const [applications, setApplications] = useState<Application[]>([]);
+  const [selectedJobId, setSelected] = useState<string>("");
+  const [applications, setApps] = useState<Application[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [loadingApps, setLoadingApps] = useState(false);
   const [updating, setUpdating] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedId, setExpanded] = useState<string | null>(null);
+  const [newNote, setNewNote] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!token) return;
@@ -63,7 +64,7 @@ export default function EmployerApplicantsPage() {
       .get("/employer/jobs")
       .then((res) => {
         setJobs(res.data);
-        if (res.data.length > 0) setSelectedJobId(res.data[0].id);
+        if (res.data.length > 0) setSelected(res.data[0].id);
       })
       .finally(() => setLoadingJobs(false));
   }, [token]);
@@ -73,7 +74,7 @@ export default function EmployerApplicantsPage() {
     setLoadingApps(true);
     api
       .get(`/employer/jobs/${selectedJobId}/applicants`)
-      .then((res) => setApplications(res.data))
+      .then((res) => setApps(res.data))
       .catch(console.error)
       .finally(() => setLoadingApps(false));
   }, [selectedJobId]);
@@ -84,14 +85,23 @@ export default function EmployerApplicantsPage() {
       await api.patch(`/employer/applications/${appId}/status`, {
         statusName: status,
       });
-      setApplications((prev) =>
+      setApps((prev) =>
         prev.map((a) =>
-          a.id === appId ? { ...a, status: { status_name: status } } : a
-        )
+          a.id === appId ? { ...a, status: { status_name: status } } : a,
+        ),
       );
     } finally {
       setUpdating(null);
     }
+  };
+
+  const addNote = async (appId: string) => {
+    const text = newNote[appId]?.trim();
+    if (!text) return;
+    await api.post(`/employer/applications/${appId}/notes`, { noteText: text });
+    setNewNote((prev) => ({ ...prev, [appId]: "" }));
+    const res = await api.get(`/employer/jobs/${selectedJobId}/applicants`);
+    setApps(res.data);
   };
 
   const exportCSV = async () => {
@@ -106,10 +116,22 @@ export default function EmployerApplicantsPage() {
     a.click();
   };
 
-  const filtered = applications.filter((a) =>
-    a.seeker.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    a.seeker.email.toLowerCase().includes(search.toLowerCase())
+  const filtered = applications.filter(
+    (a) =>
+      a.seeker.full_name.toLowerCase().includes(search.toLowerCase()) ||
+      a.seeker.email.toLowerCase().includes(search.toLowerCase()),
   );
+
+  const counts = {
+    total: applications.length,
+    pending: applications.filter((a) => a.status.status_name === "Pending")
+      .length,
+    shortlisted: applications.filter((a) =>
+      ["Shortlisted", "Interview"].includes(a.status.status_name),
+    ).length,
+    accepted: applications.filter((a) => a.status.status_name === "Accepted")
+      .length,
+  };
 
   return (
     <div className="space-y-5 max-w-5xl mx-auto">
@@ -117,9 +139,7 @@ export default function EmployerApplicantsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-gray-900">Applicants</h2>
-          <p className="text-sm text-gray-500">
-            Review and manage candidates
-          </p>
+          <p className="text-sm text-gray-500">Review and manage candidates</p>
         </div>
         <button
           onClick={exportCSV}
@@ -130,9 +150,9 @@ export default function EmployerApplicantsPage() {
         </button>
       </div>
 
-      {/* Job selector */}
+      {/* Job selector + search */}
       <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+        <div className="flex-1">
           <label className="block text-xs text-gray-500 mb-1 font-medium">
             Select Job
           </label>
@@ -142,8 +162,8 @@ export default function EmployerApplicantsPage() {
             <div className="relative">
               <select
                 value={selectedJobId}
-                onChange={(e) => setSelectedJobId(e.target.value)}
-                className="w-full appearance-none text-sm border border-gray-200 rounded-lg px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 bg-white cursor-pointer"
+                onChange={(e) => setSelected(e.target.value)}
+                className="w-full appearance-none text-sm border border-gray-200 rounded-lg px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white cursor-pointer"
               >
                 <option value="">Select a job...</option>
                 {jobs.map((j) => (
@@ -173,32 +193,30 @@ export default function EmployerApplicantsPage() {
               placeholder="Name or email..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition"
+              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
             />
           </div>
         </div>
       </div>
 
-      {/* Stats row */}
+      {/* Stats */}
       {!loadingApps && applications.length > 0 && (
         <div className="grid grid-cols-4 gap-3">
           {[
-            { label: "Total", count: applications.length, color: "text-gray-700" },
+            { label: "Total", count: counts.total, color: "text-gray-700" },
             {
               label: "Pending",
-              count: applications.filter((a) => a.status.status_name === "Pending").length,
+              count: counts.pending,
               color: "text-yellow-600",
             },
             {
               label: "Shortlisted",
-              count: applications.filter((a) =>
-                ["Shortlisted", "Interview"].includes(a.status.status_name)
-              ).length,
+              count: counts.shortlisted,
               color: "text-blue-600",
             },
             {
               label: "Accepted",
-              count: applications.filter((a) => a.status.status_name === "Accepted").length,
+              count: counts.accepted,
               color: "text-green-600",
             },
           ].map((s) => (
@@ -218,12 +236,17 @@ export default function EmployerApplicantsPage() {
         {!selectedJobId ? (
           <div className="py-16 text-center">
             <Users size={36} className="mx-auto text-gray-200 mb-3" />
-            <p className="text-sm text-gray-500">Select a job to view applicants</p>
+            <p className="text-sm text-gray-500">
+              Select a job to view applicants
+            </p>
           </div>
         ) : loadingApps ? (
           <div className="divide-y divide-gray-50">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-4 px-5 py-4 animate-pulse">
+              <div
+                key={i}
+                className="flex items-center gap-4 px-5 py-4 animate-pulse"
+              >
                 <div className="w-10 h-10 bg-gray-100 rounded-full" />
                 <div className="flex-1 space-y-2">
                   <div className="h-4 w-36 bg-gray-100 rounded" />
@@ -240,19 +263,14 @@ export default function EmployerApplicantsPage() {
         ) : (
           <div className="divide-y divide-gray-50">
             {filtered.map((app, idx) => (
-              <div key={app.id} className="group">
+              <div key={app.id}>
                 {/* Main row */}
                 <div className="flex items-center gap-4 px-5 py-4">
-                  {/* Avatar */}
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 ${
-                      avatarColors[idx % avatarColors.length]
-                    }`}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 ${avatarColors[idx % avatarColors.length]}`}
                   >
                     {initials(app.seeker.full_name)}
                   </div>
-
-                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900">
                       {app.seeker.full_name}
@@ -263,13 +281,10 @@ export default function EmployerApplicantsPage() {
                       </span>
                       <span className="text-xs text-gray-300">·</span>
                       <span className="text-xs text-gray-400">
-                        Applied{" "}
-                        {new Date(app.applied_at).toLocaleDateString()}
+                        Applied {new Date(app.applied_at).toLocaleDateString()}
                       </span>
                     </div>
                   </div>
-
-                  {/* Resume link */}
                   {app.seeker.resume_url && (
                     <a
                       href={app.seeker.resume_url}
@@ -277,15 +292,10 @@ export default function EmployerApplicantsPage() {
                       rel="noopener noreferrer"
                       className="hidden md:flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 transition"
                     >
-                      <FileText size={13} /> Resume
-                      <ExternalLink size={11} />
+                      <FileText size={13} /> Resume <ExternalLink size={11} />
                     </a>
                   )}
-
-                  {/* Status badge */}
                   <StatusBadge status={app.status.status_name} />
-
-                  {/* Status dropdown */}
                   <div className="relative">
                     <select
                       value={app.status.status_name}
@@ -293,42 +303,43 @@ export default function EmployerApplicantsPage() {
                       disabled={updating === app.id}
                       className="appearance-none text-xs border border-gray-200 rounded-lg px-2 py-1.5 pr-6 bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer disabled:opacity-50"
                     >
-                      <option value="Pending">Pending</option>
-                      <option value="Shortlisted">Shortlisted</option>
-                      <option value="Interview">Interview</option>
-                      <option value="Accepted">Accepted</option>
-                      <option value="Rejected">Rejected</option>
+                      {[
+                        "Pending",
+                        "Shortlisted",
+                        "Interview",
+                        "Accepted",
+                        "Rejected",
+                      ].map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
                     </select>
                     <ChevronDown
                       size={10}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
                     />
                   </div>
-
-                  {/* Expand toggle */}
                   <button
                     onClick={() =>
-                      setExpandedId(expandedId === app.id ? null : app.id)
+                      setExpanded(expandedId === app.id ? null : app.id)
                     }
-                    className="p-1.5 text-gray-300 hover:text-gray-600 transition-colors"
+                    className="p-1.5 text-gray-300 hover:text-gray-600 transition"
                   >
                     <ChevronRight
                       size={14}
-                      className={`transition-transform ${
-                        expandedId === app.id ? "rotate-90" : ""
-                      }`}
+                      className={`transition-transform ${expandedId === app.id ? "rotate-90" : ""}`}
                     />
                   </button>
                 </div>
 
                 {/* Expanded detail */}
                 {expandedId === app.id && (
-                  <div className="px-5 pb-4 pt-0 border-t border-gray-50 bg-gray-50/50">
+                  <div className="px-5 pb-4 pt-1 border-t border-gray-50 bg-gray-50/60">
                     <div className="flex gap-6 pt-3">
-                      {/* Cover letter */}
                       {app.cover_letter && (
                         <div className="flex-1">
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                             Cover Letter
                           </p>
                           <p className="text-sm text-gray-700 leading-relaxed">
@@ -336,17 +347,15 @@ export default function EmployerApplicantsPage() {
                           </p>
                         </div>
                       )}
-
-                      {/* Notes */}
-                      <div className="w-64 flex-shrink-0">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                      <div className="w-64 shrink-0">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                           Notes ({app.notes.length})
                         </p>
-                        <div className="space-y-2 mb-2">
+                        <div className="space-y-2 mb-3">
                           {app.notes.map((note) => (
                             <div
                               key={note.id}
-                              className="text-xs bg-white border border-gray-100 rounded-lg p-2"
+                              className="text-xs bg-white border border-gray-100 rounded-xl p-2.5"
                             >
                               <p className="text-gray-700">{note.note_text}</p>
                               <p className="text-gray-400 mt-1">
@@ -355,38 +364,28 @@ export default function EmployerApplicantsPage() {
                             </div>
                           ))}
                         </div>
-                        <form
-                          onSubmit={async (e) => {
-                            e.preventDefault();
-                            const form = e.target as HTMLFormElement;
-                            const input = form.elements.namedItem(
-                              "note"
-                            ) as HTMLInputElement;
-                            if (!input.value.trim()) return;
-                            await api.post(
-                              `/employer/applications/${app.id}/notes`,
-                              { noteText: input.value }
-                            );
-                            input.value = "";
-                            const res = await api.get(
-                              `/employer/jobs/${selectedJobId}/applicants`
-                            );
-                            setApplications(res.data);
-                          }}
-                          className="flex gap-2"
-                        >
+                        <div className="flex gap-2">
                           <input
-                            name="note"
+                            value={newNote[app.id] ?? ""}
+                            onChange={(e) =>
+                              setNewNote((prev) => ({
+                                ...prev,
+                                [app.id]: e.target.value,
+                              }))
+                            }
+                            onKeyDown={(e) =>
+                              e.key === "Enter" && addNote(app.id)
+                            }
                             placeholder="Add a note..."
-                            className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                            className="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-200"
                           />
                           <button
-                            type="submit"
-                            className="text-xs bg-blue-600 text-white px-2.5 py-1.5 rounded-lg hover:bg-blue-700 transition"
+                            onClick={() => addNote(app.id)}
+                            className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition"
                           >
                             Add
                           </button>
-                        </form>
+                        </div>
                       </div>
                     </div>
                   </div>
