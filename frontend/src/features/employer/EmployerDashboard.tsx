@@ -448,7 +448,7 @@ export default function EmployerDashboard() {
         {activeTab === "post" && <PostJobForm onSuccess={handleJobPosted} />}
         {activeTab === "applicants" &&
           (selectedJobId ? (
-            <ApplicantsList key={selectedJobId} jobId={selectedJobId} />
+            <ApplicantsList key={selectedJobId} />
           ) : (
             <div className="text-gray-500">
               Select a job from "My Jobs" to view applicants.

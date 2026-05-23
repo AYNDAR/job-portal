@@ -5,7 +5,7 @@ import Register from "./features/auth/Register";
 import JobSearch from "./features/jobs/JobSearch";
 import JobDetailsPage from "./features/jobs/JobDetailsPage";
 import ApplyForm from "./features/applications/ApplyForm";
-import MyApplications from "./features/applications/MyApplications";
+
 import BookmarksPage from "./features/bookmarks/BookmarksPage";
 import NotificationsPage from "./features/notifications/NotificationsPage";
 import JobSeekerDashboard from "./features/jobSeeker/pages/Dashboard";
@@ -14,6 +14,7 @@ import SettingsPage from "./features/jobSeeker/pages/Settings";
 import SuperAdminDashboard from "./features/superAdmin/SuperAdminDashboard";
 import AdminDashboard from "./features/admin/AdminDashboard";
 import ProtectedRoute from "./components/common/ProtectedRoute";
+import Home from "./pages/Home"; // ✅ import the new Home component
 
 // Employer dashboard
 import EmployerLayout from "./components/employer/EmployerLayout";
@@ -24,12 +25,16 @@ import PostJobForm from "./features/employer/PostJobForm";
 import EmployerAnalyticsPage from "./features/employer/EmployerAnalyticsPage";
 import CompanyProfilePage from "./features/employer/CompanyProfilePage";
 import EmployerSettingsPage from "./features/employer/EmployerSettingsPage";
+import MyApplications from "./features/applications/MyApplications";
 
 function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+
+      {/* Home page (landing) - no Layout wrapper */}
+      <Route path="/" element={<Home />} />
 
       {/* Admin */}
       <Route
@@ -69,9 +74,8 @@ function App() {
         <Route path="settings" element={<EmployerSettingsPage />} />
       </Route>
 
-      {/* Main layout */}
+      {/* Main layout for protected pages and job search */}
       <Route element={<Layout />}>
-        <Route path="/" element={<JobSearch />} />
         <Route path="/jobs" element={<JobSearch />} />
         <Route path="/jobs/:id" element={<JobDetailsPage />} />
 
@@ -123,6 +127,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+        {/* Removed duplicate /my-applications */}
         <Route
           path="/settings"
           element={
