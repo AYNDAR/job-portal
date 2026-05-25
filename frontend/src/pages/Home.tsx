@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -17,6 +17,18 @@ import {
   Clock,
   Bookmark,
   BookmarkCheck,
+  Menu,
+  X,
+  ChevronDown,
+  Bell,
+  LogOut,
+  User,
+  FileText,
+  LayoutDashboard,
+  PlusCircle,
+  TrendingUp,
+  Heart,
+  Settings,
 } from "lucide-react";
 import { RootState, AppDispatch } from "../store";
 import { searchJobs, bookmarkJob } from "../features/jobSeeker/jobSeekerSlice";
@@ -38,21 +50,53 @@ interface Bookmark {
 
 // ─── Static data ───────────────────────────────────────────
 const CATEGORIES = [
-  { label: "Technology", icon: "💻", count: 1240 },
-  { label: "Healthcare", icon: "🏥", count: 856 },
-  { label: "Finance", icon: "📊", count: 634 },
-  { label: "Design", icon: "🎨", count: 520 },
-  { label: "Marketing", icon: "📣", count: 448 },
-  { label: "Education", icon: "📚", count: 390 },
-  { label: "Engineering", icon: "⚙️", count: 712 },
-  { label: "Sales", icon: "🤝", count: 318 },
+  { label: "Technology", icon: "💻", count: 1240, slug: "technology" },
+  { label: "Healthcare", icon: "🏥", count: 856, slug: "healthcare" },
+  { label: "Finance", icon: "📊", count: 634, slug: "finance" },
+  { label: "Design", icon: "🎨", count: 520, slug: "design" },
+  { label: "Marketing", icon: "📣", count: 448, slug: "marketing" },
+  { label: "Education", icon: "📚", count: 390, slug: "education" },
+  { label: "Engineering", icon: "⚙️", count: 712, slug: "engineering" },
+  { label: "Sales", icon: "🤝", count: 318, slug: "sales" },
 ];
 
 const FEATURED_COMPANIES = [
-  { name: "TechCorp", industry: "Technology", jobs: 24, verified: true },
-  { name: "HealthPlus", industry: "Healthcare", jobs: 18, verified: true },
-  { name: "FinEdge", industry: "Finance", jobs: 15, verified: true },
-  { name: "Designify", industry: "Design", jobs: 11, verified: false },
+  {
+    name: "TechCorp",
+    industry: "Technology",
+    jobs: 24,
+    verified: true,
+    slug: "techcorp",
+    description: "Leading software solutions company",
+    location: "Addis Ababa, Ethiopia",
+  },
+  {
+    name: "HealthPlus",
+    industry: "Healthcare",
+    jobs: 18,
+    verified: true,
+    slug: "healthplus",
+    description: "East Africa's top healthcare provider",
+    location: "Nairobi, Kenya",
+  },
+  {
+    name: "FinEdge",
+    industry: "Finance",
+    jobs: 15,
+    verified: true,
+    slug: "finedge",
+    description: "Innovative fintech & banking services",
+    location: "Lagos, Nigeria",
+  },
+  {
+    name: "Designify",
+    industry: "Design",
+    jobs: 11,
+    verified: false,
+    slug: "designify",
+    description: "Creative digital design studio",
+    location: "Cape Town, South Africa",
+  },
 ];
 
 const STATS = [
@@ -76,7 +120,7 @@ const WHY_US = [
   {
     icon: <Globe size={22} className="text-violet-500" />,
     title: "Remote & Hybrid",
-    desc: "Find remote, hybrid, or on-site roles across the globe.",
+    desc: "Find remote, hybrid, or on-site roles across East Africa and beyond.",
   },
   {
     icon: <Clock size={22} className="text-amber-500" />,
@@ -85,7 +129,479 @@ const WHY_US = [
   },
 ];
 
-// ─── Sub-components ────────────────────────────────────────
+const POPULAR_SEARCHES = [
+  {
+    label: "React Developer",
+    keyword: "React Developer",
+    industry: "Technology",
+  },
+  { label: "Product Manager", keyword: "Product Manager", industry: "" },
+  { label: "UX Designer", keyword: "UX Designer", industry: "Design" },
+  { label: "Data Analyst", keyword: "Data Analyst", industry: "Technology" },
+  {
+    label: "DevOps Engineer",
+    keyword: "DevOps Engineer",
+    industry: "Technology",
+  },
+];
+
+// ─── Navbar ────────────────────────────────────────────────
+function Navbar() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [jobsDropdown, setJobsDropdown] = useState(false);
+  const [profileDropdown, setProfileDropdown] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  const user = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "null");
+    } catch {
+      return null;
+    }
+  })();
+
+  const isEmployer = user?.userType === "Employer";
+  const isSeeker = user?.userType === "Job Seeker";
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
+        setJobsDropdown(false);
+      }
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(e.target as Node)
+      ) {
+        setProfileDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    window.location.href = "/";
+  };
+
+  return (
+    <nav
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        scrolled
+          ? "bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100"
+          : "bg-transparent"
+      }`}
+    >
+      <div className="max-w-7xl mx-auto px-4">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2 shrink-0">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <Briefcase size={15} className="text-white" />
+            </div>
+            <span
+              className={`font-bold text-lg transition-colors ${
+                scrolled ? "text-gray-900" : "text-white"
+              }`}
+            >
+              JobPortal
+            </span>
+          </Link>
+
+          {/* Desktop Nav Links */}
+          <div className="hidden lg:flex items-center gap-1">
+            {/* Browse Jobs Dropdown */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setJobsDropdown(!jobsDropdown)}
+                className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  scrolled
+                    ? "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                    : "text-white/80 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                Browse Jobs{" "}
+                <ChevronDown
+                  size={14}
+                  className={`transition-transform ${jobsDropdown ? "rotate-180" : ""}`}
+                />
+              </button>
+              {jobsDropdown && (
+                <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
+                  <div className="px-3 py-1.5">
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">
+                      By Category
+                    </p>
+                  </div>
+                  {CATEGORIES.slice(0, 5).map((cat) => (
+                    <Link
+                      key={cat.label}
+                      to={`/jobs?industry=${cat.label}`}
+                      onClick={() => setJobsDropdown(false)}
+                      className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 transition-colors"
+                    >
+                      <span className="text-base">{cat.icon}</span>
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">
+                          {cat.label}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {cat.count.toLocaleString()} jobs
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                  <div className="border-t border-gray-100 mt-1 pt-1">
+                    <Link
+                      to="/jobs"
+                      onClick={() => setJobsDropdown(false)}
+                      className="flex items-center justify-between px-3 py-2 hover:bg-blue-50 transition-colors"
+                    >
+                      <span className="text-sm font-medium text-blue-600">
+                        View all categories
+                      </span>
+                      <ArrowRight size={13} className="text-blue-500" />
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <Link
+              to="/jobs"
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                scrolled
+                  ? "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                  : "text-white/80 hover:text-white hover:bg-white/10"
+              }`}
+            >
+              Find Jobs
+            </Link>
+
+            <Link
+              to="/companies"
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                scrolled
+                  ? "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                  : "text-white/80 hover:text-white hover:bg-white/10"
+              }`}
+            >
+              Companies
+            </Link>
+
+            {isEmployer && (
+              <Link
+                to="/employer/dashboard/post"
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  scrolled
+                    ? "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                    : "text-white/80 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                Post a Job
+              </Link>
+            )}
+
+            <Link
+              to="/career-tips"
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                scrolled
+                  ? "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                  : "text-white/80 hover:text-white hover:bg-white/10"
+              }`}
+            >
+              Career Tips
+            </Link>
+          </div>
+
+          {/* Right Side */}
+          <div className="hidden lg:flex items-center gap-2">
+            {user ? (
+              <>
+                {/* Notifications */}
+                <button
+                  className={`relative p-2 rounded-lg transition-colors ${
+                    scrolled
+                      ? "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                      : "text-white/70 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  <Bell size={18} />
+                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
+                </button>
+
+                {/* Profile Dropdown */}
+                <div className="relative" ref={profileRef}>
+                  <button
+                    onClick={() => setProfileDropdown(!profileDropdown)}
+                    className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center text-white text-xs font-bold">
+                      {user.name?.[0]?.toUpperCase() || "U"}
+                    </div>
+                    <span className="text-sm font-medium text-gray-800 max-w-25 truncate">
+                      {user.name || "Account"}
+                    </span>
+                    <ChevronDown
+                      size={13}
+                      className={`text-gray-400 transition-transform ${profileDropdown ? "rotate-180" : ""}`}
+                    />
+                  </button>
+
+                  {profileDropdown && (
+                    <div className="absolute top-full right-0 mt-1 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
+                      <div className="px-4 py-2 border-b border-gray-100 mb-1">
+                        <p className="text-sm font-semibold text-gray-900 truncate">
+                          {user.name}
+                        </p>
+                        <p className="text-xs text-gray-400 truncate">
+                          {user.email}
+                        </p>
+                        <span className="mt-1 inline-block text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
+                          {user.userType}
+                        </span>
+                      </div>
+
+                      {isSeeker && (
+                        <>
+                          <Link
+                            to="/dashboard"
+                            onClick={() => setProfileDropdown(false)}
+                            className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            <LayoutDashboard
+                              size={15}
+                              className="text-gray-400"
+                            />{" "}
+                            Dashboard
+                          </Link>
+                          <Link
+                            to="/dashboard/applications"
+                            onClick={() => setProfileDropdown(false)}
+                            className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            <FileText size={15} className="text-gray-400" /> My
+                            Applications
+                          </Link>
+                          <Link
+                            to="/dashboard/saved"
+                            onClick={() => setProfileDropdown(false)}
+                            className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            <Heart size={15} className="text-gray-400" /> Saved
+                            Jobs
+                          </Link>
+                          <Link
+                            to="/profile"
+                            onClick={() => setProfileDropdown(false)}
+                            className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            <User size={15} className="text-gray-400" /> My
+                            Profile
+                          </Link>
+                        </>
+                      )}
+
+                      {isEmployer && (
+                        <>
+                          <Link
+                            to="/employer/dashboard"
+                            onClick={() => setProfileDropdown(false)}
+                            className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            <LayoutDashboard
+                              size={15}
+                              className="text-gray-400"
+                            />{" "}
+                            Employer Dashboard
+                          </Link>
+                          <Link
+                            to="/employer/dashboard/post"
+                            onClick={() => setProfileDropdown(false)}
+                            className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            <PlusCircle size={15} className="text-gray-400" />{" "}
+                            Post a Job
+                          </Link>
+                          <Link
+                            to="/employer/dashboard/applicants"
+                            onClick={() => setProfileDropdown(false)}
+                            className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            <TrendingUp size={15} className="text-gray-400" />{" "}
+                            Manage Applicants
+                          </Link>
+                        </>
+                      )}
+
+                      <div className="border-t border-gray-100 mt-1 pt-1">
+                        <Link
+                          to="/settings"
+                          onClick={() => setProfileDropdown(false)}
+                          className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          <Settings size={15} className="text-gray-400" />{" "}
+                          Settings
+                        </Link>
+                        <button
+                          onClick={handleLogout}
+                          className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          <LogOut size={15} /> Sign Out
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    scrolled
+                      ? "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+                      : "text-white/80 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  Sign In
+                </Link>
+                <Link
+                  to="/register"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-sm"
+                >
+                  Get Started
+                </Link>
+              </>
+            )}
+          </div>
+
+          {/* Mobile Menu Toggle */}
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className={`lg:hidden p-2 rounded-lg transition-colors ${
+              scrolled
+                ? "text-gray-700 hover:bg-gray-100"
+                : "text-white hover:bg-white/10"
+            }`}
+          >
+            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Menu */}
+      {mobileOpen && (
+        <div className="lg:hidden bg-white border-t border-gray-100 shadow-lg">
+          <div className="max-w-7xl mx-auto px-4 py-4 space-y-1">
+            <Link
+              to="/jobs"
+              onClick={() => setMobileOpen(false)}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <Search size={16} className="text-gray-400" /> Find Jobs
+            </Link>
+            <Link
+              to="/companies"
+              onClick={() => setMobileOpen(false)}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <Building2 size={16} className="text-gray-400" /> Companies
+            </Link>
+            <Link
+              to="/career-tips"
+              onClick={() => setMobileOpen(false)}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <TrendingUp size={16} className="text-gray-400" /> Career Tips
+            </Link>
+
+            <div className="pt-1 pb-1 border-t border-gray-100">
+              <p className="px-3 py-1.5 text-xs text-gray-400 font-medium uppercase tracking-wide">
+                Categories
+              </p>
+              {CATEGORIES.slice(0, 4).map((cat) => (
+                <Link
+                  key={cat.label}
+                  to={`/jobs?industry=${cat.label}`}
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <span>{cat.icon}</span> {cat.label}
+                  <span className="ml-auto text-xs text-gray-400">
+                    {cat.count.toLocaleString()}
+                  </span>
+                </Link>
+              ))}
+            </div>
+
+            <div className="pt-2 border-t border-gray-100 space-y-2">
+              {user ? (
+                <>
+                  {isSeeker && (
+                    <Link
+                      to="/dashboard"
+                      onClick={() => setMobileOpen(false)}
+                      className="block px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      My Dashboard
+                    </Link>
+                  )}
+                  {isEmployer && (
+                    <Link
+                      to="/employer/dashboard"
+                      onClick={() => setMobileOpen(false)}
+                      className="block px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      Employer Dashboard
+                    </Link>
+                  )}
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50"
+                  >
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/login"
+                    onClick={() => setMobileOpen(false)}
+                    className="block w-full text-center px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    to="/register"
+                    onClick={() => setMobileOpen(false)}
+                    className="block w-full text-center px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700"
+                  >
+                    Get Started Free
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </nav>
+  );
+}
+
+// ─── Job Card ─────────────────────────────────────────────
 function JobCard({
   job,
   isBookmarked,
@@ -96,42 +612,71 @@ function JobCard({
   onBookmark: () => void;
 }) {
   const daysAgo = Math.floor(Math.random() * 14) + 1;
+  const industryIcon =
+    job.industry === "Technology"
+      ? "💻"
+      : job.industry === "Healthcare"
+        ? "🏥"
+        : job.industry === "Finance"
+          ? "📊"
+          : job.industry === "Design"
+            ? "🎨"
+            : job.industry === "Marketing"
+              ? "📣"
+              : job.industry === "Engineering"
+                ? "⚙️"
+                : "🏢";
+
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group p-5">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group p-5 flex flex-col">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="w-11 h-11 bg-linear-to-br from-blue-50 to-indigo-100 rounded-xl flex items-center justify-center shrink-0 text-lg">
-          {job.industry === "Technology"
-            ? "💻"
-            : job.industry === "Healthcare"
-              ? "🏥"
-              : "🏢"}
+          {industryIcon}
         </div>
         <button
-          onClick={onBookmark}
-          className={`p-1.5 rounded-lg transition shrink-0 ${isBookmarked ? "text-blue-600 bg-blue-50" : "text-gray-300 hover:text-blue-500 hover:bg-blue-50"}`}
+          onClick={(e) => {
+            e.preventDefault();
+            onBookmark();
+          }}
+          className={`p-1.5 rounded-lg transition shrink-0 ${
+            isBookmarked
+              ? "text-blue-600 bg-blue-50"
+              : "text-gray-300 hover:text-blue-500 hover:bg-blue-50"
+          }`}
+          title={isBookmarked ? "Remove bookmark" : "Save job"}
         >
           {isBookmarked ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
         </button>
       </div>
-      <Link to={`/jobs/${job.id}`}>
-        <h3 className="font-semibold text-gray-900 hover:text-blue-600 transition text-sm leading-snug mb-1">
+
+      <Link to={`/jobs/${job.id}`} className="block flex-1">
+        <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition text-sm leading-snug mb-1">
           {job.title}
         </h3>
+        <p className="text-xs text-gray-500 mb-3">{job.company}</p>
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-lg">
+            <MapPin size={10} /> {job.location}
+          </span>
+          <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">
+            <Briefcase size={10} /> {job.employmentType}
+          </span>
+        </div>
       </Link>
-      <p className="text-xs text-gray-500 mb-3">{job.company}</p>
-      <div className="flex flex-wrap gap-1.5 mb-3">
-        <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-lg">
-          <MapPin size={10} /> {job.location}
-        </span>
-        <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">
-          <Briefcase size={10} /> {job.employmentType}
-        </span>
-      </div>
+
       <div className="flex items-center justify-between pt-3 border-t border-gray-50">
         <span className="text-sm font-semibold text-gray-800">
           {job.salaryRange || "Competitive"}
         </span>
-        <span className="text-xs text-gray-400">{daysAgo}d ago</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400">{daysAgo}d ago</span>
+          <Link
+            to={`/jobs/${job.id}`}
+            className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-0.5 hover:gap-1.5 transition-all"
+          >
+            View <ArrowRight size={11} />
+          </Link>
+        </div>
       </div>
     </div>
   );
@@ -149,6 +694,7 @@ export default function HomePage() {
         bookmarks: [] as Bookmark[],
       },
   );
+
   const user = (() => {
     try {
       return JSON.parse(localStorage.getItem("user") || "null");
@@ -165,16 +711,23 @@ export default function HomePage() {
     dispatch(searchJobs({}));
   }, [dispatch]);
 
-  const handleSearch = (e?: React.FormEvent) => {
+  const handleSearch = (
+    e?: React.FormEvent,
+    overrideKeyword?: string,
+    overrideIndustry?: string,
+  ) => {
     e?.preventDefault();
-    dispatch(searchJobs({ keyword, location, industry: activeCategory }));
+    const kw = overrideKeyword ?? keyword;
+    const ind = overrideIndustry ?? activeCategory;
+    dispatch(searchJobs({ keyword: kw, location, industry: ind }));
     navigate(
-      `/jobs?q=${keyword}&location=${location}&industry=${activeCategory}`,
+      `/jobs?q=${encodeURIComponent(kw)}&location=${encodeURIComponent(location)}&industry=${encodeURIComponent(ind)}`,
     );
   };
 
   const isBookmarked = (id: string) =>
     bookmarks.some((b: Bookmark) => b.jobId === id);
+
   const handleBookmark = (id: string) => {
     if (!user || user.userType !== "Job Seeker") {
       navigate("/login");
@@ -183,18 +736,23 @@ export default function HomePage() {
     dispatch(bookmarkJob(id));
   };
 
-  const popularSearches = [
-    "React Developer",
-    "Product Manager",
-    "UX Designer",
-    "Data Analyst",
-    "DevOps Engineer",
-  ];
+  const handleCategoryClick = (cat: (typeof CATEGORIES)[0]) => {
+    setActiveCategory(cat.label);
+    dispatch(searchJobs({ industry: cat.label }));
+    navigate(`/jobs?industry=${encodeURIComponent(cat.label)}`);
+  };
+
+  const handleCompanyClick = (company: (typeof FEATURED_COMPANIES)[0]) => {
+    navigate(`/jobs?company=${encodeURIComponent(company.name)}`);
+  };
 
   return (
     <div className="min-h-screen bg-white">
+      {/* ── NAVBAR ───────────────────────────────────────── */}
+      <Navbar />
+
       {/* ── HERO ─────────────────────────────────────────── */}
-      <section className="relative bg-linear-to-br from-[#0d1a2d] via-[#0f2744] to-[#143057] overflow-hidden">
+      <section className="relative bg-linear-to-br from-[#0d1a2d] via-[#0f2744] to-[#143057] overflow-hidden pt-16">
         <div
           className="absolute inset-0 opacity-10"
           style={{
@@ -206,7 +764,7 @@ export default function HomePage() {
         <div className="relative max-w-6xl mx-auto px-4 py-20 md:py-28 text-center">
           <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-white/80 text-xs font-medium px-4 py-1.5 rounded-full mb-6 backdrop-blur-sm">
             <Zap size={12} className="text-yellow-400" /> 2,400+ new jobs posted
-            this week
+            this week across East Africa
           </div>
 
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-5">
@@ -216,8 +774,8 @@ export default function HomePage() {
             </span>
           </h1>
           <p className="text-lg text-white/70 mb-10 max-w-xl mx-auto leading-relaxed">
-            Connect with top companies and land your dream job. 50,000+
-            positions across every industry.
+            Connect with top employers across Ethiopia, Kenya, Nigeria and
+            beyond. 50,000+ positions across every industry.
           </p>
 
           <form
@@ -245,7 +803,7 @@ export default function HomePage() {
               <input
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder="Location"
+                placeholder="City or Country"
                 className="w-full pl-10 pr-4 py-3 text-sm text-gray-800 bg-transparent focus:outline-none placeholder:text-gray-400"
               />
             </div>
@@ -257,18 +815,20 @@ export default function HomePage() {
             </button>
           </form>
 
+          {/* Popular Searches — real navigation */}
           <div className="flex items-center justify-center flex-wrap gap-2">
             <span className="text-white/50 text-xs">Popular:</span>
-            {popularSearches.map((s) => (
+            {POPULAR_SEARCHES.map((s) => (
               <button
-                key={s}
+                key={s.label}
                 onClick={() => {
-                  setKeyword(s);
-                  handleSearch();
+                  setKeyword(s.keyword);
+                  setActiveCategory(s.industry);
+                  handleSearch(undefined, s.keyword, s.industry);
                 }}
                 className="text-xs text-white/70 hover:text-white bg-white/10 hover:bg-white/20 border border-white/10 px-3 py-1.5 rounded-full transition"
               >
-                {s}
+                {s.label}
               </button>
             ))}
           </div>
@@ -302,7 +862,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* JOB CATEGORIES */}
+      {/* JOB CATEGORIES — fully functional */}
       <section className="py-16 bg-gray-50">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex items-center justify-between mb-8">
@@ -325,14 +885,10 @@ export default function HomePage() {
             {CATEGORIES.map((cat) => (
               <button
                 key={cat.label}
-                onClick={() => {
-                  setActiveCategory(cat.label);
-                  dispatch(searchJobs({ industry: cat.label }));
-                  navigate(`/jobs?industry=${cat.label}`);
-                }}
+                onClick={() => handleCategoryClick(cat)}
                 className={`flex items-center gap-3 p-4 rounded-2xl border text-left hover:border-blue-300 hover:bg-blue-50 transition-all group ${
                   activeCategory === cat.label
-                    ? "border-blue-400 bg-blue-50"
+                    ? "border-blue-400 bg-blue-50 shadow-sm"
                     : "border-gray-200 bg-white"
                 }`}
               >
@@ -345,13 +901,17 @@ export default function HomePage() {
                     {cat.count.toLocaleString()} jobs
                   </p>
                 </div>
+                <ChevronRight
+                  size={13}
+                  className="ml-auto text-gray-300 group-hover:text-blue-400 shrink-0 transition-colors"
+                />
               </button>
             ))}
           </div>
         </div>
       </section>
 
-      {/* FEATURED JOBS */}
+      {/* FEATURED JOBS — real, with full detail navigation */}
       <section className="py-16 bg-white">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex items-center justify-between mb-8">
@@ -397,6 +957,12 @@ export default function HomePage() {
               <p className="text-gray-400 text-sm mt-1">
                 Try different keywords or filters
               </p>
+              <Link
+                to="/jobs"
+                className="mt-4 inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Browse all jobs <ArrowRight size={14} />
+              </Link>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -410,6 +976,17 @@ export default function HomePage() {
               ))}
             </div>
           )}
+
+          {jobs.length > 0 && (
+            <div className="text-center mt-10">
+              <Link
+                to="/jobs"
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3 rounded-xl transition shadow-sm text-sm"
+              >
+                Explore All Jobs <ArrowRight size={15} />
+              </Link>
+            </div>
+          )}
         </div>
       </section>
 
@@ -419,7 +996,8 @@ export default function HomePage() {
           <div className="text-center mb-12">
             <h2 className="text-2xl font-bold text-gray-900">Why JobPortal?</h2>
             <p className="text-gray-500 text-sm mt-2 max-w-md mx-auto">
-              We make the job search experience simple, fast, and transparent.
+              We make the job search experience simple, fast, and transparent
+              across East Africa.
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -443,7 +1021,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* FEATURED COMPANIES */}
+      {/* FEATURED COMPANIES — functional, navigate to filtered jobs */}
       <section className="py-16 bg-white">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex items-center justify-between mb-8">
@@ -455,14 +1033,21 @@ export default function HomePage() {
                 Trusted employers actively looking for talent
               </p>
             </div>
+            <Link
+              to="/companies"
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+            >
+              View all <ChevronRight size={15} />
+            </Link>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {FEATURED_COMPANIES.map((co) => (
-              <div
+              <button
                 key={co.name}
-                className="bg-white rounded-2xl border border-gray-100 p-5 hover:border-blue-200 hover:shadow-md transition-all cursor-pointer text-center"
+                onClick={() => handleCompanyClick(co)}
+                className="bg-white rounded-2xl border border-gray-100 p-5 hover:border-blue-200 hover:shadow-md transition-all text-center group"
               >
-                <div className="w-14 h-14 bg-linear-to-br from-blue-50 to-indigo-100 rounded-2xl flex items-center justify-center text-xl font-bold text-blue-600 mx-auto mb-3">
+                <div className="w-14 h-14 bg-linear-to-br from-blue-50 to-indigo-100 rounded-2xl flex items-center justify-center text-xl font-bold text-blue-600 mx-auto mb-3 group-hover:scale-105 transition-transform">
                   {co.name[0]}
                 </div>
                 <div className="flex items-center justify-center gap-1 mb-1">
@@ -473,20 +1058,25 @@ export default function HomePage() {
                     <CheckCircle size={13} className="text-blue-500" />
                   )}
                 </div>
-                <p className="text-xs text-gray-400 mb-3">{co.industry}</p>
+                <p className="text-xs text-gray-400 mb-1">{co.industry}</p>
+                <p className="text-xs text-gray-400 mb-3">{co.location}</p>
                 <span className="text-xs bg-blue-50 text-blue-700 border border-blue-100 px-2.5 py-1 rounded-full font-medium">
                   {co.jobs} open roles
                 </span>
-              </div>
+                <p className="text-xs text-blue-500 mt-2 flex items-center justify-center gap-0.5 group-hover:gap-1.5 transition-all">
+                  View jobs <ArrowRight size={11} />
+                </p>
+              </button>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA SPLIT BANNER */}
+      {/* CTA SPLIT BANNER — fixed: always shows login/register links */}
       <section className="py-16 bg-gray-50">
         <div className="max-w-5xl mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Job Seeker Card */}
             <div className="bg-linear-to-br from-blue-600 to-indigo-700 rounded-2xl p-8 text-white relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
               <Users size={28} className="mb-4 text-blue-200" />
@@ -495,14 +1085,23 @@ export default function HomePage() {
                 Create a profile, upload your resume, and get discovered by top
                 employers today.
               </p>
-              <Link
-                to={user ? "/dashboard" : "/register"}
-                className="inline-flex items-center gap-2 bg-white text-blue-700 font-semibold text-sm px-5 py-2.5 rounded-xl hover:bg-blue-50 transition"
-              >
-                {user ? "Go to Dashboard" : "Get Started Free"}{" "}
-                <ArrowRight size={14} />
-              </Link>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Link
+                  to="/register?type=seeker"
+                  className="inline-flex items-center justify-center gap-2 bg-white text-blue-700 font-semibold text-sm px-5 py-2.5 rounded-xl hover:bg-blue-50 transition"
+                >
+                  Create Account <ArrowRight size={14} />
+                </Link>
+                <Link
+                  to="/login"
+                  className="inline-flex items-center justify-center gap-2 bg-blue-500/40 hover:bg-blue-500/60 text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition border border-white/20"
+                >
+                  Sign In
+                </Link>
+              </div>
             </div>
+
+            {/* Employer Card */}
             <div className="bg-linear-to-br from-gray-800 to-gray-900 rounded-2xl p-8 text-white relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
               <Building2 size={28} className="mb-4 text-gray-300" />
@@ -511,16 +1110,20 @@ export default function HomePage() {
                 Post jobs, review applications, and find the perfect candidate
                 faster than ever.
               </p>
-              <Link
-                to={
-                  user?.userType === "Employer"
-                    ? "/employer/dashboard/post"
-                    : "/register"
-                }
-                className="inline-flex items-center gap-2 bg-white text-gray-900 font-semibold text-sm px-5 py-2.5 rounded-xl hover:bg-gray-100 transition"
-              >
-                Post a Job <ArrowRight size={14} />
-              </Link>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Link
+                  to="/register?type=employer"
+                  className="inline-flex items-center justify-center gap-2 bg-white text-gray-900 font-semibold text-sm px-5 py-2.5 rounded-xl hover:bg-gray-100 transition"
+                >
+                  Start Hiring <ArrowRight size={14} />
+                </Link>
+                <Link
+                  to="/login"
+                  className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition border border-white/20"
+                >
+                  Sign In
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -540,6 +1143,7 @@ export default function HomePage() {
               {
                 name: "Sara Abebe",
                 role: "Frontend Engineer at TechCorp",
+                location: "Addis Ababa, Ethiopia",
                 quote:
                   "I landed my dream job in just 3 weeks. The platform made it so easy to connect with the right employers.",
                 rating: 5,
@@ -547,6 +1151,7 @@ export default function HomePage() {
               {
                 name: "Daniel Tesfaye",
                 role: "Product Manager at StartupX",
+                location: "Nairobi, Kenya",
                 quote:
                   "The job recommendations were spot on. I didn't waste time scrolling through irrelevant listings.",
                 rating: 5,
@@ -554,6 +1159,7 @@ export default function HomePage() {
               {
                 name: "Meron Girma",
                 role: "UX Designer at Designify",
+                location: "Lagos, Nigeria",
                 quote:
                   "Best job portal I've used. The profile feature helped me showcase my portfolio and get noticed.",
                 rating: 5,
@@ -585,6 +1191,7 @@ export default function HomePage() {
                       {t.name}
                     </p>
                     <p className="text-xs text-gray-400">{t.role}</p>
+                    <p className="text-xs text-gray-300">{t.location}</p>
                   </div>
                 </div>
               </div>
@@ -615,31 +1222,37 @@ export default function HomePage() {
               {
                 title: "For Job Seekers",
                 links: [
-                  "Browse Jobs",
-                  "My Dashboard",
-                  "Applications",
-                  "Saved Jobs",
-                  "Career Tips",
+                  { label: "Browse Jobs", to: "/jobs" },
+                  { label: "My Dashboard", to: "/dashboard" },
+                  { label: "My Applications", to: "/dashboard/applications" },
+                  { label: "Saved Jobs", to: "/dashboard/saved" },
+                  { label: "Career Tips", to: "/career-tips" },
                 ],
               },
               {
                 title: "For Employers",
                 links: [
-                  "Post a Job",
-                  "Employer Dashboard",
-                  "Manage Applicants",
-                  "Company Profile",
-                  "Pricing",
+                  { label: "Post a Job", to: "/register?type=employer" },
+                  { label: "Employer Dashboard", to: "/employer/dashboard" },
+                  {
+                    label: "Manage Applicants",
+                    to: "/employer/dashboard/applicants",
+                  },
+                  { label: "Company Profile", to: "/employer/profile" },
+                  {
+                    label: "Sign Up as Employer",
+                    to: "/register?type=employer",
+                  },
                 ],
               },
               {
                 title: "Company",
                 links: [
-                  "About Us",
-                  "Blog",
-                  "Careers",
-                  "Privacy Policy",
-                  "Terms of Service",
+                  { label: "About Us", to: "/about" },
+                  { label: "Blog", to: "/blog" },
+                  { label: "Careers", to: "/jobs" },
+                  { label: "Privacy Policy", to: "/privacy" },
+                  { label: "Terms of Service", to: "/terms" },
                 ],
               },
             ].map((col) => (
@@ -649,13 +1262,13 @@ export default function HomePage() {
                 </p>
                 <ul className="space-y-2">
                   {col.links.map((link) => (
-                    <li key={link}>
-                      <a
-                        href="#"
+                    <li key={link.label}>
+                      <Link
+                        to={link.to}
                         className="text-xs hover:text-white transition"
                       >
-                        {link}
-                      </a>
+                        {link.label}
+                      </Link>
                     </li>
                   ))}
                 </ul>
@@ -667,15 +1280,15 @@ export default function HomePage() {
               © {new Date().getFullYear()} JobPortal. All rights reserved.
             </p>
             <div className="flex items-center gap-4 text-xs">
-              <a href="#" className="hover:text-white transition">
+              <Link to="/privacy" className="hover:text-white transition">
                 Privacy
-              </a>
-              <a href="#" className="hover:text-white transition">
+              </Link>
+              <Link to="/terms" className="hover:text-white transition">
                 Terms
-              </a>
-              <a href="#" className="hover:text-white transition">
+              </Link>
+              <Link to="/cookies" className="hover:text-white transition">
                 Cookies
-              </a>
+              </Link>
             </div>
           </div>
         </div>

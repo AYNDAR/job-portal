@@ -94,32 +94,28 @@ model JobPost {
   status             JobPostStatus @relation(fields: [status_id], references: [id])
   created_at         DateTime @default(now())
 
-  // Search/filter fields
   jobSite          String?
   experienceLevel  String?
   educationLevel   String?
   genderPreference String?
 
-  // Extended job fields (Upwork style)
   requirements        String?
   application_deadline DateTime?
   show_salary         Boolean   @default(true)
   highlight_job       Boolean   @default(false)
   allow_remote        Boolean   @default(false)
-  budget_type         String?   // "hourly" or "fixed"
+  budget_type         String?
   budget_min          Float?
   budget_max          Float?
-  duration            String?   // e.g., "1-3 months"
-  experience_level    String?   // "Entry", "Intermediate", "Expert"
-  skills              String[]  // array of skills
+  duration            String?
+  experience_level    String?
+  skills              String[]
   require_resume      Boolean   @default(false)
-  attachments         String[]  // URLs of uploaded files
+  attachments         String[]
 
   applications JobApplication[]
   bookmarks    JobBookmark[]
 }
-
-// ==================== APPLICATION & NOTES ====================
 
 model JobApplicationStatus {
   id          Int     @id @default(autoincrement())
@@ -152,8 +148,6 @@ model JobApplicationNote {
   created_at     DateTime @default(now())
 }
 
-// ==================== BOOKMARKS & NOTIFICATIONS ====================
-
 model JobBookmark {
   id         Int    @id @default(autoincrement())
   seeker_id  String
@@ -177,8 +171,8 @@ model Notification {
 
 model SearchLog {
   id         Int      @id @default(autoincrement())
-  user_id    String?  // null for guest users
+  user_id    String?
   query_text String
-  filters    Json?    // store filter object as JSON
+  filters    Json?
   created_at DateTime @default(now())
 }

@@ -10,6 +10,7 @@ import bookmarkRoutes from "./routes/bookmarkRoutes";
 import notificationRoutes from "./routes/notificationRoutes";
 import { errorHandler } from "./middlewares/errorHandler";
 import userRoutes from "./routes/userRoutes";
+import jobSeekerRoutes from "./routes/jobSeekerRoutes";
 import path from "path";
 
 dotenv.config();
@@ -27,6 +28,7 @@ app.use("/api/applications", applicationRoutes);
 app.use("/api/employer", employerRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/bookmarks", bookmarkRoutes);
+app.use("/api/jobseeker", jobSeekerRoutes);
 app.use("/api/notifications", notificationRoutes);
 
 app.get("/health", (req, res) => {

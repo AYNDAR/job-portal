@@ -1,138 +1,337 @@
 import { Request, Response } from "express";
-import { prisma } from "../config/database";
-import { AuthRequest } from "../middlewares/authMiddleware";
+import prisma from "../lib/prisma";
+import cloudinary from "../config/cloudinary";
 
-export const searchJobs = async (req: Request, res: Response) => {
+// ==================== Public Controllers ====================
+
+// GET /api/jobs - List all active jobs with filters & pagination
+export const getJobs = async (req: Request, res: Response) => {
   try {
-    const {
-      title,
-      industry,
-      location,
-      type,
-      salary,
-      jobSite,
-      experienceLevel,
-      educationLevel,
-      genderPreference,
-      page = 1,
-      limit = 20,
-    } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
-    const take = Number(limit);
+    const { keyword, location, industry, page = "1", limit = "10" } = req.query;
 
-    const where: any = { status: { status_name: "Open" } };
-    if (title) where.title = { contains: title as string, mode: "insensitive" };
+    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    const take = parseInt(limit as string);
+
+    const where: any = {
+      status: { status_name: "Open" }, // only active jobs
+    };
+
+    if (keyword) {
+      where.OR = [
+        { title: { contains: keyword as string, mode: "insensitive" } },
+        { description: { contains: keyword as string, mode: "insensitive" } },
+      ];
+    }
+    if (location) {
+      where.location = { contains: location as string, mode: "insensitive" };
+    }
     if (industry) {
-      const industryRecord = await prisma.jobIndustry.findFirst({
-        where: { industry_name: industry as string },
-      });
-      if (industryRecord) where.industry_id = industryRecord.id;
-    }
-    if (location)
-      where.employer = {
-        location: { contains: location as string, mode: "insensitive" },
-      };
-    if (type) where.employment_type = { type_name: type as string };
-    if (salary)
-      where.salary_range = { contains: salary as string, mode: "insensitive" };
-    if (jobSite) where.jobSite = jobSite as string;
-    if (experienceLevel) where.experienceLevel = experienceLevel as string;
-    if (educationLevel) where.educationLevel = educationLevel as string;
-    if (genderPreference) where.genderPreference = genderPreference as string;
-
-    if (title && typeof title === "string") {
-      where.title = { contains: title, mode: "insensitive" };
-    }
-    if (location && typeof location === "string") {
-      where.employer = {
-        location: { contains: location, mode: "insensitive" },
-      };
-    }
-    if (type && typeof type === "string") {
-      // type is employment type name (e.g., "Full-time")
-      where.employment_type = { type_name: type };
-    }
-    if (salary && typeof salary === "string") {
-      where.salary_range = { contains: salary, mode: "insensitive" };
-    }
-    // Handle industry name -> ID lookup
-    if (industry && typeof industry === "string") {
-      const industryRecord = await prisma.jobIndustry.findFirst({
-        where: { industry_name: industry },
-      });
-      if (industryRecord) {
-        where.industry_id = industryRecord.id;
-      } else {
-        // If industry name not found, return empty results
-        return res.json({
-          data: [],
-          pagination: { page: 1, limit: take, total: 0, pages: 0 },
-        });
-      }
+      where.industry = { industry_name: industry as string };
     }
 
     const jobs = await prisma.jobPost.findMany({
       where,
-      skip,
-      take,
       include: {
         employer: {
-          select: { company_name: true, logo_url: true, location: true },
+          include: { user: true },
         },
+        industry: true,
+        employment_type: true,
+      },
+      skip,
+      take,
+      orderBy: { created_at: "desc" },
+    });
+
+    const total = await prisma.jobPost.count({ where });
+
+    res.json({
+      jobs,
+      total,
+      page: parseInt(page as string),
+      limit: take,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// GET /api/jobs/search - Alternative search endpoint (simple)
+export const searchJobs = async (req: Request, res: Response) => {
+  try {
+    const { keyword, location, industry } = req.query;
+    const where: any = { status: { status_name: "Open" } };
+
+    if (keyword) {
+      where.OR = [
+        { title: { contains: keyword as string, mode: "insensitive" } },
+        { description: { contains: keyword as string, mode: "insensitive" } },
+      ];
+    }
+    if (location) {
+      where.location = { contains: location as string, mode: "insensitive" };
+    }
+    if (industry) {
+      where.industry = { industry_name: industry as string };
+    }
+
+    const jobs = await prisma.jobPost.findMany({
+      where,
+      include: {
+        employer: { include: { user: true } },
         industry: true,
         employment_type: true,
       },
       orderBy: { created_at: "desc" },
     });
 
-    const total = await prisma.jobPost.count({ where });
-
-    // Log search query (optional)
-    await prisma.searchLog.create({
-      data: {
-        user_id: (req as AuthRequest).user?.userId,
-        query_text: (title as string) || "",
-        filters: JSON.stringify({ industry, location, type, salary }),
-      },
-    });
-
-    res.json({
-      data: jobs,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total,
-        pages: Math.ceil(total / take),
-      },
-    });
+    res.json(jobs);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
+// GET /api/jobs/:id - Get single job details
 export const getJobById = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
+    if (!id) return res.status(400).json({ message: "Job ID is required" });
     const job = await prisma.jobPost.findUnique({
       where: { id },
       include: {
         employer: {
-          select: {
-            company_name: true,
-            logo_url: true,
-            website: true,
-            location: true,
-          },
+          include: { user: true },
         },
         industry: true,
         employment_type: true,
+        status: true,
       },
     });
-    if (!job) return res.status(404).json({ error: "Job not found" });
+
+    if (!job) {
+      return res.status(404).json({ message: "Job not found" });
+    }
+
     res.json(job);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ==================== Employer-Only Controllers ====================
+
+// POST /api/jobs - Create a new job (with optional logo upload)
+export const createJob = async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const employer = await prisma.employerProfile.findUnique({
+      where: { user_id: user.id },
+    });
+    if (!employer) {
+      return res.status(403).json({ message: "Employer profile not found" });
+    }
+
+    const {
+      title,
+      description,
+      industry_id,
+      employment_type_id,
+      salary_range,
+      jobSite,
+      experienceLevel,
+      educationLevel,
+      genderPreference,
+      requirements,
+      application_deadline,
+      show_salary,
+      highlight_job,
+      allow_remote,
+      budget_type,
+      budget_min,
+      budget_max,
+      duration,
+      experience_level,
+      skills,
+      require_resume,
+    } = req.body;
+
+    // Parse skills if sent as JSON string
+    let parsedSkills: string[] = [];
+    if (skills) {
+      parsedSkills = Array.isArray(skills) ? skills : JSON.parse(skills);
+    }
+
+    // Upload logo if present
+    let logoUrl = null;
+    if (req.file) {
+      const result = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: "job-portal/logos" },
+          (err, result) => (err ? reject(err) : resolve(result)),
+        );
+        stream.end(req.file!.buffer);
+      });
+      logoUrl = (result as any).secure_url;
+    }
+
+    const job = await prisma.jobPost.create({
+      data: {
+        title,
+        description,
+        employer_id: employer.id,
+        industry_id: parseInt(industry_id as string),
+        employment_type_id: parseInt(employment_type_id as string),
+        salary_range: salary_range || null,
+        status_id: 2, // "Open" (adjust if your seed uses different ID)
+        jobSite: jobSite || null,
+        experienceLevel: experienceLevel || null,
+        educationLevel: educationLevel || null,
+        genderPreference: genderPreference || null,
+        requirements: requirements || null,
+        application_deadline: application_deadline
+          ? new Date(application_deadline as string)
+          : null,
+        show_salary: show_salary === "true",
+        highlight_job: highlight_job === "true",
+        allow_remote: allow_remote === "true",
+        budget_type: budget_type || null,
+        budget_min: budget_min ? parseFloat(budget_min as string) : null,
+        budget_max: budget_max ? parseFloat(budget_max as string) : null,
+        duration: duration || null,
+        experience_level: experience_level || null,
+        skills: parsedSkills,
+        require_resume: require_resume === "true",
+        attachments: logoUrl ? [logoUrl] : [],
+      },
+    });
+
+    res.status(201).json(job);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Job creation failed" });
+  }
+};
+
+// PUT /api/jobs/:id - Update a job (employer only)
+export const updateJob = async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const id = req.params.id as string; // ✅ fixed: cast to string
+    if (!id) return res.status(400).json({ message: "Job ID is required" });
+
+    const employer = await prisma.employerProfile.findUnique({
+      where: { user_id: user.id },
+    });
+    if (!employer) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    const job = await prisma.jobPost.findFirst({
+      where: { id, employer_id: employer.id }, // ✅ id is now string
+    });
+    if (!job) {
+      return res.status(404).json({ message: "Job not found or not yours" });
+    }
+
+    // Destructure only allowed update fields
+    const {
+      title,
+      description,
+      industry_id,
+      employment_type_id,
+      salary_range,
+      jobSite,
+      experienceLevel,
+      educationLevel,
+      genderPreference,
+      requirements,
+      application_deadline,
+      show_salary,
+      highlight_job,
+      allow_remote,
+      budget_type,
+      budget_min,
+      budget_max,
+      duration,
+      experience_level,
+      skills,
+      require_resume,
+    } = req.body;
+
+    const updated = await prisma.jobPost.update({
+      where: { id }, // ✅ id is string
+      data: {
+        title,
+        description,
+        industry_id: industry_id ? parseInt(industry_id) : undefined,
+        employment_type_id: employment_type_id
+          ? parseInt(employment_type_id)
+          : undefined,
+        salary_range,
+        jobSite,
+        experienceLevel,
+        educationLevel,
+        genderPreference,
+        requirements,
+        application_deadline: application_deadline
+          ? new Date(application_deadline)
+          : undefined,
+        show_salary:
+          show_salary !== undefined ? show_salary === "true" : undefined,
+        highlight_job:
+          highlight_job !== undefined ? highlight_job === "true" : undefined,
+        allow_remote:
+          allow_remote !== undefined ? allow_remote === "true" : undefined,
+        budget_type,
+        budget_min: budget_min ? parseFloat(budget_min) : undefined,
+        budget_max: budget_max ? parseFloat(budget_max) : undefined,
+        duration,
+        experience_level,
+        skills: skills
+          ? Array.isArray(skills)
+            ? skills
+            : JSON.parse(skills)
+          : undefined,
+        require_resume:
+          require_resume !== undefined ? require_resume === "true" : undefined,
+      },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Update failed" });
+  }
+};
+
+// DELETE /api/jobs/:id - Delete a job (employer only)
+export const deleteJob = async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const id = req.params.id as string; // ✅ fixed: cast to string
+    if (!id) return res.status(400).json({ message: "Job ID is required" });
+
+    const employer = await prisma.employerProfile.findUnique({
+      where: { user_id: user.id },
+    });
+    if (!employer) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    const job = await prisma.jobPost.findFirst({
+      where: { id, employer_id: employer.id }, // ✅ id is string
+    });
+    if (!job) {
+      return res.status(404).json({ message: "Job not found or not yours" });
+    }
+
+    await prisma.jobPost.delete({ where: { id } }); // ✅ id is string
+    res.json({ message: "Job deleted" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Delete failed" });
   }
 };

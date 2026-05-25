@@ -67,6 +67,7 @@ export default function CompanyProfilePage() {
   const [industries, setIndustries] = useState<Industry[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [msg, setMsg] = useState<{
     type: "success" | "error";
     text: string;
@@ -82,10 +83,18 @@ export default function CompanyProfilePage() {
     user?.email?.slice(0, 2).toUpperCase() ||
     "CO";
 
+  const fetchProfile = async () => {
+    try {
+      const res = await api.get("/employer/profile");
+      setProfile((prev) => ({ ...prev, ...res.data }));
+    } catch (err) {
+      console.error("Failed to fetch profile", err);
+    }
+  };
+
   useEffect(() => {
-    Promise.all([api.get("/employer/profile"), api.get("/admin/categories")])
-      .then(([p, i]) => {
-        setProfile((prev) => ({ ...prev, ...p.data }));
+    Promise.all([fetchProfile(), api.get("/admin/categories")])
+      .then(([, i]) => {
         setIndustries(i.data);
       })
       .catch(console.error)
@@ -127,11 +136,37 @@ export default function CompanyProfilePage() {
     setSpecInput("");
   };
 
+  // Updated logo upload function: sends file to backend
   const uploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    set("logo_url", url);
+    if (!file.type.startsWith("image/")) {
+      flash("error", "Please select an image file.");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      flash("error", "File too large (max 2MB).");
+      return;
+    }
+
+    setUploadingLogo(true);
+    const formData = new FormData();
+    formData.append("logo", file);
+    try {
+      const response = await api.post("/employer/profile/logo", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      const newLogoUrl = response.data.logoUrl;
+      set("logo_url", newLogoUrl);
+      flash("success", "Logo uploaded successfully!");
+    } catch (error: any) {
+      console.error(error);
+      flash("error", error.response?.data?.message || "Logo upload failed.");
+    } finally {
+      setUploadingLogo(false);
+      // Reset file input so the same file can be uploaded again if needed
+      if (logoRef.current) logoRef.current.value = "";
+    }
   };
 
   const completionFields = [
@@ -196,7 +231,11 @@ export default function CompanyProfilePage() {
 
       {msg && (
         <div
-          className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm ${msg.type === "success" ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-600"}`}
+          className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm ${
+            msg.type === "success"
+              ? "bg-green-50 border border-green-200 text-green-700"
+              : "bg-red-50 border border-red-200 text-red-600"
+          }`}
         >
           {msg.type === "success" ? (
             <CheckCircle size={16} />
@@ -233,14 +272,19 @@ export default function CompanyProfilePage() {
               </div>
               <button
                 onClick={() => logoRef.current?.click()}
-                className="absolute bottom-0 right-0 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center shadow-sm hover:bg-blue-700 transition"
+                disabled={uploadingLogo}
+                className="absolute bottom-0 right-0 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center shadow-sm hover:bg-blue-700 transition disabled:opacity-50"
               >
-                <Camera size={11} className="text-white" />
+                {uploadingLogo ? (
+                  <Loader2 size={11} className="text-white animate-spin" />
+                ) : (
+                  <Camera size={11} className="text-white" />
+                )}
               </button>
               <input
                 ref={logoRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 className="hidden"
                 onChange={uploadLogo}
               />
@@ -636,7 +680,9 @@ export default function CompanyProfilePage() {
             ].map((item) => (
               <div
                 key={item.label}
-                className={`flex items-center gap-2 text-xs ${item.done ? "text-green-700" : "text-amber-700"}`}
+                className={`flex items-center gap-2 text-xs ${
+                  item.done ? "text-green-700" : "text-amber-700"
+                }`}
               >
                 <CheckCircle
                   size={12}

@@ -26,6 +26,9 @@ import EmployerAnalyticsPage from "./features/employer/EmployerAnalyticsPage";
 import CompanyProfilePage from "./features/employer/CompanyProfilePage";
 import EmployerSettingsPage from "./features/employer/EmployerSettingsPage";
 import MyApplications from "./features/applications/MyApplications";
+import FindJobsPage from "./pages/FindJobsPage";
+import CompaniesPage from "./pages/CompaniesPage";
+import CareerTipsPage from "./pages/CareerTipsPage";
 
 function App() {
   return (
@@ -35,6 +38,9 @@ function App() {
 
       {/* Home page (landing) - no Layout wrapper */}
       <Route path="/" element={<Home />} />
+      <Route path="/jobs" element={<FindJobsPage />} />
+      <Route path="/companies" element={<CompaniesPage />} />
+      <Route path="/career-tips" element={<CareerTipsPage />} />
 
       {/* Admin */}
       <Route

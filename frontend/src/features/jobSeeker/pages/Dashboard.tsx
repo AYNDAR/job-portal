@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -329,9 +330,9 @@ export default function JobSeekerDashboard() {
 
   // ── Sidebar (memo-style – never re-mounts) ───────────────────
   const Sidebar = (
-    <aside className="w-56 min-h-screen bg-white border-r border-gray-100 flex flex-col sticky top-0 h-screen overflow-y-auto flex-shrink-0">
+    <aside className="w-56 min-h-screen bg-white border-r border-gray-100 flex flex-col sticky top-0 h-screen overflow-y-auto shrink-0">
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-gray-100 flex-shrink-0">
+      <div className="px-5 py-5 border-b border-gray-100 shrink-0">
         <span className="text-lg font-bold text-blue-600 tracking-tight">
           JobPortal
         </span>
@@ -416,7 +417,7 @@ export default function JobSeekerDashboard() {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-gray-100 px-3 py-3 flex-shrink-0">
+      <div className="border-t border-gray-100 px-3 py-3 shrink-0">
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-red-500 hover:bg-red-50 transition font-medium"
@@ -504,7 +505,7 @@ export default function JobSeekerDashboard() {
       {completionPct < 100 && (
         <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
               <User size={18} className="text-blue-600" />
             </div>
             <div>
@@ -518,7 +519,7 @@ export default function JobSeekerDashboard() {
           </div>
           <button
             onClick={() => setPage("profile")}
-            className="text-xs font-semibold text-blue-700 bg-white border border-blue-200 px-4 py-2 rounded-xl hover:bg-blue-50 transition flex-shrink-0"
+            className="text-xs font-semibold text-blue-700 bg-white border border-blue-200 px-4 py-2 rounded-xl hover:bg-blue-50 transition shrink-0"
           >
             Complete Profile
           </button>
@@ -558,7 +559,7 @@ export default function JobSeekerDashboard() {
                     key={job.id}
                     className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition"
                   >
-                    <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
                       <Briefcase size={14} className="text-blue-500" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -571,7 +572,7 @@ export default function JobSeekerDashboard() {
                     </div>
                     <Link
                       to={`/jobs/${job.id}`}
-                      className="text-xs text-blue-600 font-medium flex-shrink-0"
+                      className="text-xs text-blue-600 font-medium shrink-0"
                     >
                       Apply →
                     </Link>
@@ -643,7 +644,7 @@ export default function JobSeekerDashboard() {
                       {app.jobTitle}
                     </p>
                     <span
-                      className={`text-xs px-2 py-0.5 rounded-full border font-medium ml-2 flex-shrink-0 ${statusColor[app.status] ?? "bg-gray-50 text-gray-600 border-gray-200"}`}
+                      className={`text-xs px-2 py-0.5 rounded-full border font-medium ml-2 shrink-0 ${statusColor[app.status] ?? "bg-gray-50 text-gray-600 border-gray-200"}`}
                     >
                       {app.status}
                     </span>
@@ -697,7 +698,7 @@ export default function JobSeekerDashboard() {
 
       {/* Hero card */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="h-20 bg-gradient-to-r from-blue-500 to-indigo-600" />
+        <div className="h-20 bg-linear-to-r from-blue-500 to-indigo-600" />
         <div className="px-6 pb-6">
           <div className="flex items-end gap-4 -mt-8 mb-4">
             <div className="relative">
@@ -813,7 +814,7 @@ export default function JobSeekerDashboard() {
                 key={f.key}
                 className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2"
               >
-                <span className="text-gray-400 flex-shrink-0">{f.icon}</span>
+                <span className="text-gray-400 shrink-0">{f.icon}</span>
                 <input
                   type={f.type}
                   value={(profile as any)[f.key]}
@@ -859,7 +860,7 @@ export default function JobSeekerDashboard() {
         </div>
         {resumeUrl ? (
           <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-200">
-            <FileText size={18} className="text-green-600 flex-shrink-0" />
+            <FileText size={18} className="text-green-600 shrink-0" />
             <span className="text-sm text-green-700 font-medium">
               Resume uploaded
             </span>
@@ -1023,7 +1024,7 @@ export default function JobSeekerDashboard() {
               key={c.id}
               className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl mb-2"
             >
-              <div className="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center flex-shrink-0">
+              <div className="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center shrink-0">
                 <Award size={16} className="text-amber-500" />
               </div>
               <div className="flex-1 min-w-0">
@@ -1055,7 +1056,7 @@ export default function JobSeekerDashboard() {
                     certificates: p.certificates.filter((x) => x.id !== c.id),
                   }))
                 }
-                className="text-gray-300 hover:text-red-400 transition flex-shrink-0"
+                className="text-gray-300 hover:text-red-400 transition shrink-0"
               >
                 <X size={14} />
               </button>
@@ -1155,7 +1156,7 @@ export default function JobSeekerDashboard() {
                 key={p.id}
                 className="border border-gray-100 rounded-2xl overflow-hidden hover:shadow-md transition-shadow"
               >
-                <div className="h-24 bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+                <div className="h-24 bg-linear-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
                   <Code size={28} className="text-blue-300" />
                 </div>
                 <div className="p-4">
@@ -1371,7 +1372,7 @@ export default function JobSeekerDashboard() {
         ) : (
           profile.experience.map((e) => (
             <div key={e.id} className="flex gap-3 mb-4 last:mb-0">
-              <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
+              <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
                 <Briefcase size={14} className="text-blue-500" />
               </div>
               <div className="flex-1 min-w-0">
@@ -1394,7 +1395,7 @@ export default function JobSeekerDashboard() {
                     experience: p.experience.filter((x) => x.id !== e.id),
                   }))
                 }
-                className="text-gray-300 hover:text-red-400 transition flex-shrink-0"
+                className="text-gray-300 hover:text-red-400 transition shrink-0"
               >
                 <X size={14} />
               </button>
@@ -1536,7 +1537,7 @@ export default function JobSeekerDashboard() {
         ) : (
           profile.education.map((e) => (
             <div key={e.id} className="flex gap-3 mb-3 last:mb-0">
-              <div className="w-9 h-9 bg-violet-50 rounded-xl flex items-center justify-center flex-shrink-0">
+              <div className="w-9 h-9 bg-violet-50 rounded-xl flex items-center justify-center shrink-0">
                 <Award size={14} className="text-violet-500" />
               </div>
               <div className="flex-1 min-w-0">
@@ -1831,7 +1832,7 @@ export default function JobSeekerDashboard() {
               className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition p-5"
             >
               <div className="flex items-start gap-3 mb-3">
-                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
                   <Briefcase size={16} className="text-blue-500" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -1902,7 +1903,7 @@ export default function JobSeekerDashboard() {
                   className="grid grid-cols-5 gap-2 items-center px-5 py-4 hover:bg-gray-50 transition"
                 >
                   <div className="col-span-2 flex items-center gap-3">
-                    <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
                       <Briefcase size={13} className="text-blue-500" />
                     </div>
                     <p className="text-sm font-medium text-gray-800 truncate">
@@ -1957,7 +1958,7 @@ export default function JobSeekerDashboard() {
                 className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition"
               >
                 <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <div className="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center shrink-0">
                     <Bookmark
                       size={14}
                       className="text-amber-500"
@@ -2083,7 +2084,7 @@ export default function JobSeekerDashboard() {
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Topbar */}
-        <header className="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-6 flex-shrink-0">
+        <header className="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-6 shrink-0">
           <h1 className="text-base font-semibold text-gray-800 capitalize">
             {NAV.find((n) => n.id === page)?.label ?? "Dashboard"}
           </h1>

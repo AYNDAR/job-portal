@@ -1,6 +1,16 @@
-import { Response } from "express";
-import { prisma } from "../config/database";
+import { Request, Response } from "express";
+import prisma from "../lib/prisma"; // ✅ only one prisma import
+import cloudinary from "../config/cloudinary";
+import { Prisma } from "@prisma/client";
 import { AuthRequest } from "../middlewares/authMiddleware";
+
+// Extend Express Request to include Multer file(s)
+interface MulterRequest extends Request {
+  file?: Express.Multer.File;
+  files?: Express.Multer.File[];
+}
+
+// ==================== Job Management ====================
 
 export const postJob = async (req: AuthRequest, res: Response) => {
   try {
@@ -27,7 +37,6 @@ export const postJob = async (req: AuthRequest, res: Response) => {
       require_resume,
     } = req.body;
 
-    // Get employer profile
     const employerProfile = await prisma.employerProfile.findUnique({
       where: { user_id: req.user?.userId },
     });
@@ -144,6 +153,7 @@ export const getApplicantsForJob = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+
 export const getRecentApplicants = async (req: AuthRequest, res: Response) => {
   try {
     const employerProfile = await prisma.employerProfile.findUnique({
@@ -308,7 +318,7 @@ export const getEmployerStats = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: "Server error" });
   }
 };
-// Get employer profile
+
 export const getEmployerProfile = async (req: AuthRequest, res: Response) => {
   try {
     const profile = await prisma.employerProfile.findUnique({
@@ -323,7 +333,6 @@ export const getEmployerProfile = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// Update employer profile
 export const updateEmployerProfile = async (
   req: AuthRequest,
   res: Response,
@@ -341,7 +350,6 @@ export const updateEmployerProfile = async (
   }
 };
 
-// Get application stats for charts (last 6 months)
 export const getEmployerApplicationStats = async (
   req: AuthRequest,
   res: Response,
@@ -380,7 +388,6 @@ export const getEmployerApplicationStats = async (
   }
 };
 
-// Get job post stats for charts
 export const getEmployerJobPostStats = async (
   req: AuthRequest,
   res: Response,
@@ -416,5 +423,85 @@ export const getEmployerJobPostStats = async (
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Server error" });
+  }
+};
+
+// ==================== Upload Controllers (fixed) ====================
+
+export const uploadCompanyLogo = async (req: MulterRequest, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: "job-portal/logos",
+          transformation: [{ width: 200, height: 200, crop: "limit" }],
+        },
+        (err: any, result: any) => (err ? reject(err) : resolve(result)),
+      );
+      stream.end(req.file!.buffer);
+    });
+
+    const logoUrl = (result as any).secure_url;
+
+    await prisma.employerProfile.update({
+      where: { user_id: userId },
+      data: { logo_url: logoUrl },
+    });
+
+    res.json({ logoUrl });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Logo upload failed" });
+  }
+};
+
+export const uploadJobAttachments = async (
+  req: MulterRequest,
+  res: Response,
+) => {
+  try {
+    const userId = (req as any).user?.id as string; // ✅ cast to string
+    const jobId = req.params.jobId as string; // ✅ cast to string
+
+    if (!userId || !jobId) {
+      return res.status(400).json({ message: "Missing user or job ID" });
+    }
+
+    const job = await prisma.jobPost.findFirst({
+      where: { id: jobId, employer: { user_id: userId } },
+    });
+    if (!job) {
+      return res.status(404).json({ message: "Job not found or not yours" });
+    }
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: "No files uploaded" });
+    }
+
+    const uploadedUrls = [];
+    for (const file of req.files) {
+      const result = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: `job-portal/jobs/${jobId}` },
+          (err: any, result: any) => (err ? reject(err) : resolve(result)),
+        );
+        stream.end(file.buffer);
+      });
+      uploadedUrls.push((result as any).secure_url);
+    }
+
+    const newAttachments = [...(job.attachments || []), ...uploadedUrls];
+    await prisma.jobPost.update({
+      where: { id: jobId },
+      data: { attachments: newAttachments },
+    });
+
+    res.json({ attachments: newAttachments });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Attachment upload failed" });
   }
 };
