@@ -2,10 +2,8 @@ import { Routes, Route } from "react-router-dom";
 import Layout from "./components/layout/Layout";
 import Login from "./features/auth/Login";
 import Register from "./features/auth/Register";
-import JobSearch from "./features/jobs/JobSearch";
 import JobDetailsPage from "./features/jobs/JobDetailsPage";
 import ApplyForm from "./features/applications/ApplyForm";
-
 import BookmarksPage from "./features/bookmarks/BookmarksPage";
 import NotificationsPage from "./features/notifications/NotificationsPage";
 import JobSeekerDashboard from "./features/jobSeeker/pages/Dashboard";
@@ -14,9 +12,9 @@ import SettingsPage from "./features/jobSeeker/pages/Settings";
 import SuperAdminDashboard from "./features/superAdmin/SuperAdminDashboard";
 import AdminDashboard from "./features/admin/AdminDashboard";
 import ProtectedRoute from "./components/common/ProtectedRoute";
-import Home from "./pages/Home"; // ✅ import the new Home component
+import Home from "./pages/Home";
 
-// Employer dashboard
+// Employer
 import EmployerLayout from "./components/employer/EmployerLayout";
 import EmployerOverview from "./features/employer/EmployerOverview";
 import EmployerJobsPage from "./features/employer/EmployerJobsPage";
@@ -33,14 +31,30 @@ import CareerTipsPage from "./pages/CareerTipsPage";
 function App() {
   return (
     <Routes>
+      {/* Public auth */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-      {/* Home page (landing) - no Layout wrapper */}
+      {/* Public pages — own navbar */}
       <Route path="/" element={<Home />} />
       <Route path="/jobs" element={<FindJobsPage />} />
       <Route path="/companies" element={<CompaniesPage />} />
+
+      {/* Career Tips — fully PUBLIC, no ProtectedRoute (fix #3) */}
       <Route path="/career-tips" element={<CareerTipsPage />} />
+
+      {/* Job Detail — outside Layout → no extra navbar (fix #2) */}
+      <Route path="/jobs/:id" element={<JobDetailsPage />} />
+
+      {/* Job Seeker Dashboard — own navbar */}
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute allowedRoles={["Job Seeker"]}>
+            <JobSeekerDashboard />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Admin */}
       <Route
@@ -62,7 +76,7 @@ function App() {
         }
       />
 
-      {/* Employer dashboard — nested routes with sidebar */}
+      {/* Employer Dashboard */}
       <Route
         path="/employer/dashboard"
         element={
@@ -80,24 +94,13 @@ function App() {
         <Route path="settings" element={<EmployerSettingsPage />} />
       </Route>
 
-      {/* Main layout for protected pages and job search */}
+      {/* Layout wrapper — only for pages that need global Header/Footer */}
       <Route element={<Layout />}>
-        <Route path="/jobs" element={<JobSearch />} />
-        <Route path="/jobs/:id" element={<JobDetailsPage />} />
-
         <Route
           path="/apply/:id"
           element={
             <ProtectedRoute allowedRoles={["Job Seeker"]}>
               <ApplyForm />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute allowedRoles={["Job Seeker"]}>
-              <JobSeekerDashboard />
             </ProtectedRoute>
           }
         />
@@ -133,7 +136,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-        {/* Removed duplicate /my-applications */}
         <Route
           path="/settings"
           element={

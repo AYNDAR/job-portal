@@ -1,13 +1,20 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import api from "../../services/api";
+import ForgotPasswordModal from "./ForgotPasswordModal";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  // Get the intended destination (saved by ProtectedRoute or apply button)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const from = (location.state as any)?.from || null;
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,7 +27,13 @@ export default function Login() {
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
 
-      // Redirect based on userType
+      // Priority: go to the saved `from` URL first
+      if (from) {
+        navigate(from, { replace: true });
+        return;
+      }
+
+      // Otherwise fallback to role-based default
       if (user.userType === "Employer") {
         navigate("/employer/dashboard");
       } else if (user.userType === "Admin") {
@@ -28,7 +41,7 @@ export default function Login() {
       } else if (user.userType === "Super Admin") {
         navigate("/super-admin");
       } else {
-        navigate("/dashboard"); // Job Seeker → dashboard
+        navigate("/dashboard");
       }
     } catch (err) {
       setError("Invalid credentials or server error");
@@ -81,6 +94,18 @@ export default function Login() {
             {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
+
+        {/* Forgot Password link */}
+        <div className="mt-4 text-center">
+          <button
+            type="button"
+            onClick={() => setShowForgot(true)}
+            className="text-sm text-blue-600 hover:underline"
+          >
+            Forgot password?
+          </button>
+        </div>
+
         <p className="mt-4 text-center text-sm text-gray-600">
           Don't have an account?{" "}
           <Link to="/register" className="text-blue-600 hover:underline">
@@ -88,6 +113,11 @@ export default function Login() {
           </Link>
         </p>
       </div>
+
+      {/* Forgot Password Modal */}
+      {showForgot && (
+        <ForgotPasswordModal onClose={() => setShowForgot(false)} />
+      )}
     </div>
   );
 }

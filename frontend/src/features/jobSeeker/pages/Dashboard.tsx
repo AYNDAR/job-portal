@@ -21,7 +21,6 @@ import {
   Upload,
   ExternalLink,
   CheckCircle,
-  Clock,
   Award,
   Code,
   User,
@@ -29,13 +28,14 @@ import {
   Phone,
   MapPin,
   Globe,
-  Download,
   Eye,
   AlertCircle,
   Loader2,
-  // Removed Linkedin, Github – they don't exist in lucide-react
+  ChevronDown,
+  Menu,
+  Heart,
 } from "lucide-react";
-import { FaLinkedin, FaGithub } from "react-icons/fa"; // ← correct icons
+import { FaLinkedin, FaGithub } from "react-icons/fa";
 import api from "../../../services/api";
 import { RootState, AppDispatch } from "../../../store";
 import {
@@ -44,7 +44,7 @@ import {
   fetchApplications,
 } from "../jobSeekerSlice";
 
-// ─── Types ───────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────
 interface Skill {
   name: string;
   level: "Beginner" | "Intermediate" | "Advanced" | "Expert";
@@ -64,7 +64,6 @@ interface Project {
   technologies: string[];
   url?: string;
   githubUrl?: string;
-  image?: string;
 }
 interface Education {
   id: string;
@@ -85,7 +84,6 @@ interface Experience {
   current: boolean;
   description: string;
 }
-
 interface ProfileData {
   fullName: string;
   title: string;
@@ -107,24 +105,21 @@ interface ProfileData {
   expectedSalary: string;
 }
 
-// ─── Nav items ───────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────
 const NAV = [
   { id: "overview", label: "Overview", icon: <LayoutDashboard size={16} /> },
   { id: "profile", label: "My Profile", icon: <User size={16} /> },
-  { id: "jobs", label: "Find Jobs", icon: <Search size={16} /> },
   { id: "applications", label: "Applications", icon: <FileText size={16} /> },
   { id: "saved", label: "Saved Jobs", icon: <Bookmark size={16} /> },
   { id: "notifications", label: "Notifications", icon: <Bell size={16} /> },
   { id: "settings", label: "Settings", icon: <Settings size={16} /> },
 ];
-
 const statusColor: Record<string, string> = {
   Interview: "bg-blue-50 text-blue-700 border-blue-200",
   Accepted: "bg-green-50 text-green-700 border-green-200",
   Rejected: "bg-red-50 text-red-600 border-red-200",
   Pending: "bg-yellow-50 text-yellow-700 border-yellow-200",
 };
-
 const SKILL_LEVELS: Skill["level"][] = [
   "Beginner",
   "Intermediate",
@@ -137,13 +132,196 @@ const levelColor: Record<string, string> = {
   Advanced: "bg-violet-50 text-violet-700",
   Expert: "bg-green-50 text-green-700",
 };
-
-// ─── Helpers ─────────────────────────────────────────────────
 const inp =
   "w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition placeholder:text-gray-300";
 const genId = () => Math.random().toString(36).slice(2, 9);
+const PROFILE_KEY = "jobseeker_profile_draft";
 
-// ─── Main component ──────────────────────────────────────────
+// ─── Dashboard Navbar ─────────────────────────────────────────
+function DashboardNavbar({
+  user,
+  onLogout,
+  onNavigate,
+}: {
+  user: any;
+  onLogout: () => void;
+  onNavigate: (p: string) => void;
+}) {
+  const [profDrop, setProfDrop] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fn = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setProfDrop(false);
+    };
+    document.addEventListener("mousedown", fn);
+    return () => document.removeEventListener("mousedown", fn);
+  }, []);
+
+  const initial =
+    user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U";
+
+  return (
+    <nav className="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-4 md:px-6 shrink-0 z-40 relative">
+      <Link to="/" className="flex items-center gap-2 shrink-0">
+        <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
+          <Briefcase size={13} className="text-white" />
+        </div>
+        <span className="font-bold text-base text-gray-900">JobPortal</span>
+      </Link>
+
+      <div className="hidden md:flex items-center gap-1">
+        <Link
+          to="/jobs"
+          className="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+        >
+          Find Jobs
+        </Link>
+        <Link
+          to="/companies"
+          className="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+        >
+          Companies
+        </Link>
+        <Link
+          to="/career-tips"
+          className="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+        >
+          Career Tips
+        </Link>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onNavigate("notifications")}
+          className="relative p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition"
+        >
+          <Bell size={17} />
+          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
+        </button>
+
+        <div className="relative" ref={ref}>
+          <button
+            onClick={() => setProfDrop(!profDrop)}
+            className="flex items-center gap-2 pl-2 pr-2.5 py-1.5 rounded-xl border border-gray-200 hover:bg-gray-50 bg-white transition-colors"
+          >
+            <div className="w-6 h-6 bg-blue-600 rounded-lg flex items-center justify-center text-white text-xs font-bold">
+              {initial}
+            </div>
+            <span className="text-sm font-medium text-gray-800 hidden sm:block max-w-[100px] truncate">
+              {user?.name || user?.email?.split("@")[0] || "Account"}
+            </span>
+            <ChevronDown
+              size={13}
+              className={`text-gray-400 transition-transform ${profDrop ? "rotate-180" : ""}`}
+            />
+          </button>
+          {profDrop && (
+            <div className="absolute top-full right-0 mt-1 w-52 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
+              <div className="px-4 py-2 border-b border-gray-100 mb-1">
+                <p className="text-sm font-semibold text-gray-900 truncate">
+                  {user?.name || user?.email?.split("@")[0]}
+                </p>
+                <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+                <span className="mt-1 inline-block text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
+                  Job Seeker
+                </span>
+              </div>
+              {[
+                {
+                  label: "Dashboard",
+                  page: "overview",
+                  icon: <LayoutDashboard size={14} className="text-gray-400" />,
+                },
+                {
+                  label: "My Profile",
+                  page: "profile",
+                  icon: <User size={14} className="text-gray-400" />,
+                },
+                {
+                  label: "My Applications",
+                  page: "applications",
+                  icon: <FileText size={14} className="text-gray-400" />,
+                },
+                {
+                  label: "Saved Jobs",
+                  page: "saved",
+                  icon: <Heart size={14} className="text-gray-400" />,
+                },
+                {
+                  label: "Settings",
+                  page: "settings",
+                  icon: <Settings size={14} className="text-gray-400" />,
+                },
+              ].map((item) => (
+                <button
+                  key={item.page}
+                  onClick={() => {
+                    setProfDrop(false);
+                    onNavigate(item.page);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  {item.icon} {item.label}
+                </button>
+              ))}
+              <div className="border-t border-gray-100 mt-1 pt-1">
+                <button
+                  onClick={() => {
+                    setProfDrop(false);
+                    onLogout();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  <LogOut size={14} /> Sign Out
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={() => setMobileOpen(!mobileOpen)}
+          className="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+        >
+          {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+        </button>
+      </div>
+
+      {mobileOpen && (
+        <div className="absolute top-14 left-0 right-0 bg-white border-b border-gray-100 shadow-lg z-50 md:hidden">
+          <div className="px-4 py-3 space-y-1">
+            <Link
+              to="/jobs"
+              onClick={() => setMobileOpen(false)}
+              className="block px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+            >
+              Find Jobs
+            </Link>
+            <Link
+              to="/companies"
+              onClick={() => setMobileOpen(false)}
+              className="block px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+            >
+              Companies
+            </Link>
+            <Link
+              to="/career-tips"
+              onClick={() => setMobileOpen(false)}
+              className="block px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+            >
+              Career Tips
+            </Link>
+          </div>
+        </div>
+      )}
+    </nav>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────
 export default function JobSeekerDashboard() {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
@@ -164,46 +342,51 @@ export default function JobSeekerDashboard() {
 
   const userRaw = localStorage.getItem("user");
   const user = userRaw ? JSON.parse(userRaw) : null;
-  const initials = (user?.email ?? "U").slice(0, 2).toUpperCase();
+  const initials = (user?.name ?? user?.email ?? "U").slice(0, 2).toUpperCase();
 
-  // ── Active page (sidebar does NOT re-render on page change) ──
   const [page, setPage] = useState<string>("overview");
 
-  // ── Profile state ────────────────────────────────────────────
-  const [profile, setProfile] = useState<ProfileData>({
-    fullName: user?.fullName ?? user?.email?.split("@")[0] ?? "",
-    title: "",
-    bio: "",
-    email: user?.email ?? "",
-    phone: "",
-    location: "",
-    website: "",
-    linkedin: "",
-    github: "",
-    avatarUrl: "",
-    skills: [],
-    certificates: [],
-    projects: [],
-    education: [],
-    experience: [],
-    languages: [],
-    availability: "Open to work",
-    expectedSalary: "",
-  });
+  // ── Profile — load from localStorage first ────────────────
+  const getInitialProfile = (): ProfileData => {
+    try {
+      const draft = localStorage.getItem(PROFILE_KEY);
+      if (draft) return JSON.parse(draft);
+    } catch {}
+    return {
+      fullName:
+        user?.fullName ?? user?.name ?? user?.email?.split("@")[0] ?? "",
+      title: "",
+      bio: "",
+      email: user?.email ?? "",
+      phone: "",
+      location: "",
+      website: "",
+      linkedin: "",
+      github: "",
+      avatarUrl: "",
+      skills: [],
+      certificates: [],
+      projects: [],
+      education: [],
+      experience: [],
+      languages: [],
+      availability: "Open to work",
+      expectedSalary: "",
+    };
+  };
+
+  const [profile, setProfile] = useState<ProfileData>(getInitialProfile);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
   const [profileError, setProfileError] = useState("");
   const avatarRef = useRef<HTMLInputElement>(null);
+  const resumeRef = useRef<HTMLInputElement>(null);
 
-  // ── Modal / editor state ────────────────────────────────────
   const [editSection, setEditSection] = useState<string | null>(null);
-
-  // skill editor
   const [newSkill, setNewSkill] = useState<Skill>({
     name: "",
     level: "Intermediate",
   });
-  // cert editor
   const [newCert, setNewCert] = useState<Certificate>({
     id: "",
     name: "",
@@ -212,7 +395,6 @@ export default function JobSeekerDashboard() {
     url: "",
     credentialId: "",
   });
-  // project editor
   const [newProj, setNewProj] = useState<Project>({
     id: "",
     title: "",
@@ -222,7 +404,6 @@ export default function JobSeekerDashboard() {
     githubUrl: "",
   });
   const [projTechInput, setProjTechInput] = useState("");
-  // edu editor
   const [newEdu, setNewEdu] = useState<Education>({
     id: "",
     school: "",
@@ -232,7 +413,6 @@ export default function JobSeekerDashboard() {
     endYear: "",
     current: false,
   });
-  // exp editor
   const [newExp, setNewExp] = useState<Experience>({
     id: "",
     company: "",
@@ -243,35 +423,67 @@ export default function JobSeekerDashboard() {
     current: false,
     description: "",
   });
-  // language editor
   const [newLang, setNewLang] = useState({ name: "", level: "Conversational" });
-
-  // job search filters
-  const [jobFilters, setJobFilters] = useState({
-    keyword: "",
-    location: "",
-    industry: "",
-  });
-
-  // Resume upload
   const [resumeUploading, setResumeUploading] = useState(false);
   const [resumeUrl, setResumeUrl] = useState("");
-  const resumeRef = useRef<HTMLInputElement>(null);
 
+  // Save profile to localStorage on every change
+  useEffect(() => {
+    try {
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    } catch {}
+  }, [profile]);
+
+  // Load data on mount
   useEffect(() => {
     dispatch(fetchJobs({}));
     dispatch(fetchBookmarks());
     dispatch(fetchApplications());
-    // try loading profile
+
     api
       .get("/jobseeker/profile")
-      .then((r) => setProfile((p) => ({ ...p, ...r.data })))
+      .then((res) => {
+        const server = res.data as Partial<ProfileData>;
+        if (!server || Object.keys(server).length === 0) return;
+        setProfile((prev) => ({
+          ...prev,
+          // Only overwrite with non-empty server values
+          ...(server.fullName ? { fullName: server.fullName } : {}),
+          ...(server.title ? { title: server.title } : {}),
+          ...(server.bio ? { bio: server.bio } : {}),
+          ...(server.email ? { email: server.email } : {}),
+          ...(server.phone ? { phone: server.phone } : {}),
+          ...(server.location ? { location: server.location } : {}),
+          ...(server.website ? { website: server.website } : {}),
+          ...(server.linkedin ? { linkedin: server.linkedin } : {}),
+          ...(server.github ? { github: server.github } : {}),
+          ...(server.avatarUrl ? { avatarUrl: server.avatarUrl } : {}),
+          ...(server.availability ? { availability: server.availability } : {}),
+          ...(server.expectedSalary
+            ? { expectedSalary: server.expectedSalary }
+            : {}),
+          // Only overwrite arrays if server has non-empty data
+          ...(server.skills?.length ? { skills: server.skills } : {}),
+          ...(server.certificates?.length
+            ? { certificates: server.certificates }
+            : {}),
+          ...(server.projects?.length ? { projects: server.projects } : {}),
+          ...(server.education?.length ? { education: server.education } : {}),
+          ...(server.experience?.length
+            ? { experience: server.experience }
+            : {}),
+          ...(server.languages?.length ? { languages: server.languages } : {}),
+        }));
+      })
       .catch(() => {});
   }, [dispatch]);
 
+  // ── FIX: handleLogout defined BEFORE Sidebar ─────────────
   const handleLogout = () => {
+    if (!window.confirm("Are you sure you want to sign out?")) return;
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem(PROFILE_KEY);
     navigate("/login");
   };
 
@@ -280,6 +492,7 @@ export default function JobSeekerDashboard() {
     setProfileError("");
     try {
       await api.put("/jobseeker/profile", profile);
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
       setProfileSaved(true);
       setTimeout(() => setProfileSaved(false), 3000);
     } catch {
@@ -313,7 +526,6 @@ export default function JobSeekerDashboard() {
     }
   };
 
-  // completion
   const completionItems = [
     !!profile.fullName,
     !!profile.title,
@@ -328,17 +540,9 @@ export default function JobSeekerDashboard() {
     (completionItems.filter(Boolean).length / completionItems.length) * 100,
   );
 
-  // ── Sidebar (memo-style – never re-mounts) ───────────────────
+  // ── Sidebar — handleLogout is now defined above ───────────
   const Sidebar = (
-    <aside className="w-56 min-h-screen bg-white border-r border-gray-100 flex flex-col sticky top-0 h-screen overflow-y-auto shrink-0">
-      {/* Logo */}
-      <div className="px-5 py-5 border-b border-gray-100 shrink-0">
-        <span className="text-lg font-bold text-blue-600 tracking-tight">
-          JobPortal
-        </span>
-      </div>
-
-      {/* Profile mini card */}
+    <aside className="w-56 bg-white border-r border-gray-100 flex flex-col shrink-0 overflow-y-auto">
       <div className="px-4 py-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
           <div
@@ -367,7 +571,6 @@ export default function JobSeekerDashboard() {
             </p>
           </div>
         </div>
-        {/* Profile completion */}
         <div className="mt-3">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs text-gray-400">Profile strength</span>
@@ -377,25 +580,20 @@ export default function JobSeekerDashboard() {
           </div>
           <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
             <div
-              className="h-full rounded-full bg-blue-500 transition-all"
+              className="h-full rounded-full bg-blue-500 transition-all duration-500"
               style={{ width: `${completionPct}%` }}
             />
           </div>
         </div>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 py-3 px-3 overflow-y-auto">
+      <nav className="flex-1 py-3 px-3">
         <ul className="space-y-0.5">
           {NAV.map((item) => (
             <li key={item.id}>
               <button
                 onClick={() => setPage(item.id)}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-all text-left ${
-                  page === item.id
-                    ? "bg-blue-50 text-blue-700"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                }`}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-all text-left ${page === item.id ? "bg-blue-50 text-blue-700" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`}
               >
                 <span
                   className={
@@ -416,7 +614,6 @@ export default function JobSeekerDashboard() {
         </ul>
       </nav>
 
-      {/* Footer */}
       <div className="border-t border-gray-100 px-3 py-3 shrink-0">
         <button
           onClick={handleLogout}
@@ -441,15 +638,14 @@ export default function JobSeekerDashboard() {
             Here's your job search activity
           </p>
         </div>
-        <button
-          onClick={() => setPage("jobs")}
+        <Link
+          to="/jobs"
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-xl transition shadow-sm"
         >
           <Search size={14} /> Find Jobs
-        </button>
+        </Link>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           {
@@ -462,7 +658,8 @@ export default function JobSeekerDashboard() {
           },
           {
             label: "Interviews",
-            value: applications.filter((a) => a.status === "Interview").length,
+            value: applications.filter((a: any) => a.status === "Interview")
+              .length,
             icon: <Calendar size={17} />,
             bg: "bg-green-50",
             color: "text-green-600",
@@ -474,7 +671,7 @@ export default function JobSeekerDashboard() {
             icon: <TrendingUp size={17} />,
             bg: "bg-violet-50",
             color: "text-violet-600",
-            path: "jobs",
+            path: "overview",
           },
           {
             label: "Saved Jobs",
@@ -501,9 +698,8 @@ export default function JobSeekerDashboard() {
         ))}
       </div>
 
-      {/* Profile completion prompt */}
       {completionPct < 100 && (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-center justify-between">
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
               <User size={18} className="text-blue-600" />
@@ -527,18 +723,17 @@ export default function JobSeekerDashboard() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Recommended jobs */}
         <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
             <h3 className="text-sm font-semibold text-gray-900">
               Recommended for You
             </h3>
-            <button
-              onClick={() => setPage("jobs")}
+            <Link
+              to="/jobs"
               className="text-xs text-blue-600 font-medium flex items-center gap-1"
             >
               See all <ChevronRight size={12} />
-            </button>
+            </Link>
           </div>
           <div className="divide-y divide-gray-50">
             {jobsLoading
@@ -554,7 +749,7 @@ export default function JobSeekerDashboard() {
                     </div>
                   </div>
                 ))
-              : jobs.slice(0, 4).map((job) => (
+              : jobs.slice(0, 4).map((job: any) => (
                   <div
                     key={job.id}
                     className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition"
@@ -581,7 +776,6 @@ export default function JobSeekerDashboard() {
           </div>
         </div>
 
-        {/* Quick links */}
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
             <h3 className="text-sm font-semibold text-gray-900 mb-3">
@@ -592,11 +786,6 @@ export default function JobSeekerDashboard() {
                 label: "Update my profile",
                 page: "profile",
                 icon: <User size={13} className="text-blue-500" />,
-              },
-              {
-                label: "Browse all jobs",
-                page: "jobs",
-                icon: <Search size={13} className="text-violet-500" />,
               },
               {
                 label: "My applications",
@@ -618,9 +807,16 @@ export default function JobSeekerDashboard() {
                 <ChevronRight size={12} className="ml-auto text-gray-300" />
               </button>
             ))}
+            <Link
+              to="/career-tips"
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-gray-50 text-sm text-gray-700 transition"
+            >
+              <TrendingUp size={13} className="text-violet-500" /> Career Tips
+              (AI)
+              <ChevronRight size={12} className="ml-auto text-gray-300" />
+            </Link>
           </div>
 
-          {/* Recent applications */}
           {applications.length > 0 && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
@@ -635,7 +831,7 @@ export default function JobSeekerDashboard() {
                 </button>
               </div>
               <div className="divide-y divide-gray-50">
-                {applications.slice(0, 3).map((app) => (
+                {applications.slice(0, 3).map((app: any) => (
                   <div
                     key={app.id}
                     className="flex items-center justify-between px-4 py-3"
@@ -658,15 +854,14 @@ export default function JobSeekerDashboard() {
     </div>
   );
 
-  // ─── PAGE: Profile ──────────────────────────────────────────
+  // ─── PAGE: Profile ────────────────────────────────────────────
   const PageProfile = (
     <div className="space-y-5 max-w-4xl">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-gray-900">My Profile</h2>
           <p className="text-sm text-gray-500">
-            Your public profile seen by employers · {completionPct}% complete
+            Your public profile · {completionPct}% complete
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -698,7 +893,7 @@ export default function JobSeekerDashboard() {
 
       {/* Hero card */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="h-20 bg-linear-to-r from-blue-500 to-indigo-600" />
+        <div className="h-20 bg-gradient-to-r from-blue-500 to-indigo-600" />
         <div className="px-6 pb-6">
           <div className="flex items-end gap-4 -mt-8 mb-4">
             <div className="relative">
@@ -706,10 +901,10 @@ export default function JobSeekerDashboard() {
                 <img
                   src={profile.avatarUrl}
                   alt="Avatar"
-                  className="w-16 h-16 rounded-2xl object-cover border-3 border-white shadow-md"
+                  className="w-16 h-16 rounded-2xl object-cover border-4 border-white shadow-md"
                 />
               ) : (
-                <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-xl font-bold shadow-md">
+                <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-xl font-bold shadow-md border-4 border-white">
                   {initials}
                 </div>
               )}
@@ -745,7 +940,7 @@ export default function JobSeekerDashboard() {
                 className="text-sm text-gray-500 bg-transparent border-none outline-none w-full mt-0.5"
               />
             </div>
-            <div className="flex gap-2 pb-1">
+            <div className="pb-1">
               <select
                 value={profile.availability}
                 onChange={(e) =>
@@ -761,16 +956,14 @@ export default function JobSeekerDashboard() {
             </div>
           </div>
 
-          {/* Bio */}
           <textarea
             value={profile.bio}
             onChange={(e) => setProfile((p) => ({ ...p, bio: e.target.value }))}
             rows={3}
-            placeholder="Write a compelling summary about yourself, your experience, and what you're looking for..."
+            placeholder="Write a compelling summary about yourself..."
             className="w-full text-sm text-gray-700 bg-transparent border-none outline-none resize-none placeholder:text-gray-300 leading-relaxed"
           />
 
-          {/* Contact fields */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4 pt-4 border-t border-gray-100">
             {[
               {
@@ -798,13 +991,13 @@ export default function JobSeekerDashboard() {
                 type: "url",
               },
               {
-                icon: <FaLinkedin size={13} />, // ✅ fixed
+                icon: <FaLinkedin size={13} />,
                 key: "linkedin",
                 placeholder: "LinkedIn URL",
                 type: "url",
               },
               {
-                icon: <FaGithub size={13} />, // ✅ fixed
+                icon: <FaGithub size={13} />,
                 key: "github",
                 placeholder: "GitHub URL",
                 type: "url",
@@ -828,7 +1021,6 @@ export default function JobSeekerDashboard() {
             ))}
           </div>
 
-          {/* Salary expectation */}
           <div className="mt-3 flex items-center gap-3">
             <span className="text-xs text-gray-500">Expected Salary:</span>
             <input
@@ -843,7 +1035,7 @@ export default function JobSeekerDashboard() {
         </div>
       </div>
 
-      {/* Resume upload */}
+      {/* Resume */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-gray-900">Resume / CV</h3>
@@ -914,9 +1106,7 @@ export default function JobSeekerDashboard() {
         }}
       >
         {profile.skills.length === 0 ? (
-          <p className="text-sm text-gray-400 py-2">
-            No skills added yet. Add your technical and soft skills.
-          </p>
+          <p className="text-sm text-gray-400 py-2">No skills added yet.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {profile.skills.map((s, i) => (
@@ -959,7 +1149,7 @@ export default function JobSeekerDashboard() {
                   onChange={(e) =>
                     setNewSkill((p) => ({ ...p, name: e.target.value }))
                   }
-                  placeholder="e.g. React, Python, Project Management"
+                  placeholder="e.g. React, Python"
                   className={inp}
                 />
               </div>
@@ -1016,7 +1206,7 @@ export default function JobSeekerDashboard() {
       >
         {profile.certificates.length === 0 ? (
           <p className="text-sm text-gray-400 py-2">
-            Add your professional certifications and licenses.
+            Add your professional certifications.
           </p>
         ) : (
           profile.certificates.map((c) => (
@@ -1029,15 +1219,9 @@ export default function JobSeekerDashboard() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-gray-900">{c.name}</p>
-                <p className="text-xs text-gray-500">{c.issuer}</p>
-                <div className="flex items-center gap-3 mt-0.5">
-                  <p className="text-xs text-gray-400">{c.date}</p>
-                  {c.credentialId && (
-                    <p className="text-xs text-gray-400">
-                      ID: {c.credentialId}
-                    </p>
-                  )}
-                </div>
+                <p className="text-xs text-gray-500">
+                  {c.issuer} · {c.date}
+                </p>
                 {c.url && (
                   <a
                     href={c.url}
@@ -1045,7 +1229,7 @@ export default function JobSeekerDashboard() {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline mt-1"
                   >
-                    <ExternalLink size={10} /> View Certificate
+                    <ExternalLink size={10} /> View
                   </a>
                 )}
               </div>
@@ -1128,225 +1312,6 @@ export default function JobSeekerDashboard() {
         )}
       </ProfileSection>
 
-      {/* Projects */}
-      <ProfileSection
-        title="Projects & Portfolio"
-        icon={<Code size={15} />}
-        onAdd={() => {
-          setNewProj({
-            id: genId(),
-            title: "",
-            description: "",
-            technologies: [],
-            url: "",
-            githubUrl: "",
-          });
-          setProjTechInput("");
-          setEditSection("project");
-        }}
-      >
-        {profile.projects.length === 0 ? (
-          <p className="text-sm text-gray-400 py-2">
-            Showcase your projects to stand out to employers.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {profile.projects.map((p) => (
-              <div
-                key={p.id}
-                className="border border-gray-100 rounded-2xl overflow-hidden hover:shadow-md transition-shadow"
-              >
-                <div className="h-24 bg-linear-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-                  <Code size={28} className="text-blue-300" />
-                </div>
-                <div className="p-4">
-                  <p className="text-sm font-semibold text-gray-900 mb-1">
-                    {p.title}
-                  </p>
-                  <p className="text-xs text-gray-500 mb-2 line-clamp-2">
-                    {p.description}
-                  </p>
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {p.technologies.slice(0, 4).map((t) => (
-                      <span
-                        key={t}
-                        className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full border border-blue-100"
-                      >
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {p.url && (
-                      <a
-                        href={p.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-blue-600 flex items-center gap-1"
-                      >
-                        <ExternalLink size={11} /> Live
-                      </a>
-                    )}
-                    {p.githubUrl && (
-                      <a
-                        href={p.githubUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-gray-500 flex items-center gap-1"
-                      >
-                        <FaGithub size={11} /> Code
-                      </a>
-                    )}
-                    <button
-                      onClick={() =>
-                        setProfile((prev) => ({
-                          ...prev,
-                          projects: prev.projects.filter((x) => x.id !== p.id),
-                        }))
-                      }
-                      className="ml-auto text-gray-300 hover:text-red-400 transition"
-                    >
-                      <X size={13} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        {editSection === "project" && (
-          <ModalOverlay
-            onClose={() => setEditSection(null)}
-            title="Add Project"
-          >
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Project Title *
-                </label>
-                <input
-                  value={newProj.title}
-                  onChange={(e) =>
-                    setNewProj((p) => ({ ...p, title: e.target.value }))
-                  }
-                  placeholder="e.g. E-commerce Platform"
-                  className={inp}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Description *
-                </label>
-                <textarea
-                  value={newProj.description}
-                  onChange={(e) =>
-                    setNewProj((p) => ({ ...p, description: e.target.value }))
-                  }
-                  rows={3}
-                  placeholder="Describe what you built, your role, and the impact..."
-                  className={inp + " resize-none"}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Technologies Used
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    value={projTechInput}
-                    onChange={(e) => setProjTechInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        if (projTechInput.trim()) {
-                          setNewProj((p) => ({
-                            ...p,
-                            technologies: [
-                              ...p.technologies,
-                              projTechInput.trim(),
-                            ],
-                          }));
-                          setProjTechInput("");
-                        }
-                      }
-                    }}
-                    placeholder="React, Node.js — press Enter"
-                    className={inp + " flex-1"}
-                  />
-                </div>
-                {newProj.technologies.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {newProj.technologies.map((t) => (
-                      <span
-                        key={t}
-                        className="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full"
-                      >
-                        {t}{" "}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNewProj((p) => ({
-                              ...p,
-                              technologies: p.technologies.filter(
-                                (x) => x !== t,
-                              ),
-                            }))
-                          }
-                          className="hover:text-red-500"
-                        >
-                          <X size={9} />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Live URL
-                  </label>
-                  <input
-                    value={newProj.url}
-                    onChange={(e) =>
-                      setNewProj((p) => ({ ...p, url: e.target.value }))
-                    }
-                    placeholder="https://..."
-                    className={inp}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    GitHub URL
-                  </label>
-                  <input
-                    value={newProj.githubUrl}
-                    onChange={(e) =>
-                      setNewProj((p) => ({ ...p, githubUrl: e.target.value }))
-                    }
-                    placeholder="https://github.com/..."
-                    className={inp}
-                  />
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  if (!newProj.title || !newProj.description) return;
-                  setProfile((p) => ({
-                    ...p,
-                    projects: [...p.projects, newProj],
-                  }));
-                  setEditSection(null);
-                }}
-                className="w-full bg-blue-600 text-white py-2 rounded-xl text-sm font-medium hover:bg-blue-700 transition"
-              >
-                Add Project
-              </button>
-            </div>
-          </ModalOverlay>
-        )}
-      </ProfileSection>
-
       {/* Experience */}
       <ProfileSection
         title="Work Experience"
@@ -1366,9 +1331,7 @@ export default function JobSeekerDashboard() {
         }}
       >
         {profile.experience.length === 0 ? (
-          <p className="text-sm text-gray-400 py-2">
-            Add your work history to help employers understand your background.
-          </p>
+          <p className="text-sm text-gray-400 py-2">Add your work history.</p>
         ) : (
           profile.experience.map((e) => (
             <div key={e.id} className="flex gap-3 mb-4 last:mb-0">
@@ -1422,7 +1385,7 @@ export default function JobSeekerDashboard() {
                 {
                   key: "location",
                   label: "Location",
-                  placeholder: "e.g. Remote, New York",
+                  placeholder: "e.g. Remote, Addis Ababa",
                 },
               ].map((f) => (
                 <div key={f.key}>
@@ -1449,7 +1412,7 @@ export default function JobSeekerDashboard() {
                     onChange={(e) =>
                       setNewExp((p) => ({ ...p, startDate: e.target.value }))
                     }
-                    placeholder="e.g. Jan 2021"
+                    placeholder="Jan 2021"
                     className={inp}
                   />
                 </div>
@@ -1463,7 +1426,7 @@ export default function JobSeekerDashboard() {
                       setNewExp((p) => ({ ...p, endDate: e.target.value }))
                     }
                     disabled={newExp.current}
-                    placeholder="e.g. Dec 2023"
+                    placeholder="Dec 2023"
                     className={inp + " disabled:opacity-40"}
                   />
                 </div>
@@ -1491,7 +1454,7 @@ export default function JobSeekerDashboard() {
                     setNewExp((p) => ({ ...p, description: e.target.value }))
                   }
                   rows={3}
-                  placeholder="Describe your responsibilities and achievements..."
+                  placeholder="Describe your responsibilities..."
                   className={inp + " resize-none"}
                 />
               </div>
@@ -1578,7 +1541,7 @@ export default function JobSeekerDashboard() {
                 {
                   key: "degree",
                   label: "Degree *",
-                  placeholder: "e.g. Bachelor's, Master's, PhD",
+                  placeholder: "e.g. Bachelor's, Master's",
                 },
                 {
                   key: "field",
@@ -1759,120 +1722,7 @@ export default function JobSeekerDashboard() {
     </div>
   );
 
-  // ─── PAGE: Find Jobs ─────────────────────────────────────────
-  const PageJobs = (
-    <div className="space-y-5">
-      <h2 className="text-lg font-bold text-gray-900">Find Jobs</h2>
-      <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search
-            size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-          />
-          <input
-            value={jobFilters.keyword}
-            onChange={(e) =>
-              setJobFilters((f) => ({ ...f, keyword: e.target.value }))
-            }
-            onKeyDown={(e) => {
-              if (e.key === "Enter") dispatch(fetchJobs(jobFilters));
-            }}
-            placeholder="Job title, keywords..."
-            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
-          />
-        </div>
-        <div className="relative sm:w-40">
-          <MapPin
-            size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-          />
-          <input
-            value={jobFilters.location}
-            onChange={(e) =>
-              setJobFilters((f) => ({ ...f, location: e.target.value }))
-            }
-            placeholder="Location"
-            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
-          />
-        </div>
-        <button
-          onClick={() => dispatch(fetchJobs(jobFilters))}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-5 py-2 rounded-xl transition"
-        >
-          Search
-        </button>
-      </div>
-      {jobsLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3 animate-pulse"
-            >
-              <div className="flex gap-3">
-                <div className="w-10 h-10 bg-gray-100 rounded-xl" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-gray-100 rounded w-3/4" />
-                  <div className="h-3 bg-gray-100 rounded w-1/2" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : jobs.length === 0 ? (
-        <div className="text-center py-16">
-          <Briefcase size={40} className="mx-auto text-gray-200 mb-3" />
-          <p className="text-gray-500 font-medium">No jobs found</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {jobs.map((job) => (
-            <div
-              key={job.id}
-              className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition p-5"
-            >
-              <div className="flex items-start gap-3 mb-3">
-                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
-                  <Briefcase size={16} className="text-blue-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <Link
-                    to={`/jobs/${job.id}`}
-                    className="text-sm font-semibold text-gray-900 hover:text-blue-600 transition block truncate"
-                  >
-                    {job.title}
-                  </Link>
-                  <p className="text-xs text-gray-400">{job.company}</p>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                <span className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-lg flex items-center gap-1">
-                  <MapPin size={10} />
-                  {job.location}
-                </span>
-                <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">
-                  {job.employmentType}
-                </span>
-              </div>
-              <div className="flex items-center justify-between pt-3 border-t border-gray-50">
-                <span className="text-sm font-semibold text-gray-800">
-                  {job.salaryRange || "Competitive"}
-                </span>
-                <Link
-                  to={`/apply/${job.id}`}
-                  className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-xl hover:bg-blue-700 transition font-medium"
-                >
-                  Apply Now
-                </Link>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
-  // ─── PAGE: Applications ──────────────────────────────────────
+  // ─── PAGE: Applications ───────────────────────────────────────
   const PageApplications = (
     <div className="space-y-5">
       <h2 className="text-lg font-bold text-gray-900">My Applications</h2>
@@ -1881,12 +1731,12 @@ export default function JobSeekerDashboard() {
           <div className="py-16 text-center">
             <FileText size={40} className="mx-auto text-gray-200 mb-3" />
             <p className="text-gray-500 font-medium">No applications yet</p>
-            <button
-              onClick={() => setPage("jobs")}
-              className="mt-3 text-sm text-blue-600 underline"
+            <Link
+              to="/jobs"
+              className="mt-3 inline-block text-sm text-blue-600 underline"
             >
               Browse jobs
-            </button>
+            </Link>
           </div>
         ) : (
           <>
@@ -1897,7 +1747,7 @@ export default function JobSeekerDashboard() {
               <span></span>
             </div>
             <div className="divide-y divide-gray-50">
-              {applications.map((app) => (
+              {applications.map((app: any) => (
                 <div
                   key={app.id}
                   className="grid grid-cols-5 gap-2 items-center px-5 py-4 hover:bg-gray-50 transition"
@@ -1933,7 +1783,7 @@ export default function JobSeekerDashboard() {
     </div>
   );
 
-  // ─── PAGE: Saved Jobs ────────────────────────────────────────
+  // ─── PAGE: Saved Jobs ─────────────────────────────────────────
   const PageSaved = (
     <div className="space-y-5">
       <h2 className="text-lg font-bold text-gray-900">Saved Jobs</h2>
@@ -1941,17 +1791,17 @@ export default function JobSeekerDashboard() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-16 text-center">
           <Bookmark size={40} className="mx-auto text-gray-200 mb-3" />
           <p className="text-gray-500 font-medium">No saved jobs yet</p>
-          <button
-            onClick={() => setPage("jobs")}
-            className="mt-3 text-sm text-blue-600 underline"
+          <Link
+            to="/jobs"
+            className="mt-3 inline-block text-sm text-blue-600 underline"
           >
             Browse jobs
-          </button>
+          </Link>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {bookmarks.map((bm) => {
-            const job = jobs.find((j) => j.id === bm.jobId);
+          {bookmarks.map((bm: any) => {
+            const job = jobs.find((j: any) => j.id === bm.jobId);
             return (
               <div
                 key={bm.jobId}
@@ -1997,11 +1847,11 @@ export default function JobSeekerDashboard() {
     </div>
   );
 
-  // ─── PAGE: Notifications ─────────────────────────────────────
+  // ─── PAGE: Notifications ──────────────────────────────────────
   const PageNotifications = (
     <div className="space-y-5">
       <h2 className="text-lg font-bold text-gray-900">Notifications</h2>
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
         <div className="py-16 text-center">
           <Bell size={40} className="mx-auto text-gray-200 mb-3" />
           <p className="text-gray-500 font-medium">No notifications yet</p>
@@ -2013,7 +1863,7 @@ export default function JobSeekerDashboard() {
     </div>
   );
 
-  // ─── PAGE: Settings ──────────────────────────────────────────
+  // ─── PAGE: Settings ───────────────────────────────────────────
   const PageSettings = (
     <div className="space-y-5 max-w-lg">
       <h2 className="text-lg font-bold text-gray-900">Settings</h2>
@@ -2069,7 +1919,6 @@ export default function JobSeekerDashboard() {
   const pages: Record<string, React.ReactNode> = {
     overview: PageOverview,
     profile: PageProfile,
-    jobs: PageJobs,
     applications: PageApplications,
     saved: PageSaved,
     notifications: PageNotifications,
@@ -2077,41 +1926,21 @@ export default function JobSeekerDashboard() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
-      {/* Sidebar — fixed, never re-mounts */}
-      {Sidebar}
-
-      {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Topbar */}
-        <header className="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-6 shrink-0">
-          <h1 className="text-base font-semibold text-gray-800 capitalize">
-            {NAV.find((n) => n.id === page)?.label ?? "Dashboard"}
-          </h1>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setPage("notifications")}
-              className="relative p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition"
-            >
-              <Bell size={17} />
-            </button>
-            <div
-              className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-semibold cursor-pointer"
-              onClick={() => setPage("profile")}
-            >
-              {initials}
-            </div>
-          </div>
-        </header>
-
-        {/* Page content */}
+    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+      <DashboardNavbar
+        user={user}
+        onLogout={handleLogout}
+        onNavigate={setPage}
+      />
+      <div className="flex flex-1 overflow-hidden">
+        {Sidebar}
         <main className="flex-1 overflow-y-auto p-6">{pages[page]}</main>
       </div>
     </div>
   );
 }
 
-// ─── Reusable sub-components ─────────────────────────────────
+// ─── Sub-components ───────────────────────────────────────────
 function ProfileSection({
   title,
   icon,

@@ -99,13 +99,6 @@ const FEATURED_COMPANIES = [
   },
 ];
 
-const STATS = [
-  { value: "50K+", label: "Active Jobs" },
-  { value: "12K+", label: "Companies Hiring" },
-  { value: "200K+", label: "Job Seekers" },
-  { value: "95%", label: "Placement Rate" },
-];
-
 const WHY_US = [
   {
     icon: <Zap size={22} className="text-blue-500" />,
@@ -753,20 +746,29 @@ export default function HomePage() {
 
       {/* ── HERO ─────────────────────────────────────────── */}
       <section className="relative bg-linear-to-br from-[#0d1a2d] via-[#0f2744] to-[#143057] overflow-hidden pt-16">
+        {/* Background image (full width, behind everything) */}
         <div
-          className="absolute inset-0 opacity-10"
+          className="absolute inset-0 z-0"
+          style={{
+            backgroundImage: "url('/herobg.jpeg')", // ← change path to your image
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        />
+        {/* Dark overlay for text contrast */}
+        <div className="absolute inset-0 bg-black/50 z-10" />
+
+        {/* Original radial pattern (kept as is) */}
+        <div
+          className="absolute inset-0 opacity-10 z-10"
           style={{
             backgroundImage:
               "radial-gradient(circle at 20% 50%, #3b82f6 0%, transparent 50%), radial-gradient(circle at 80% 20%, #6366f1 0%, transparent 40%)",
           }}
         />
 
-        <div className="relative max-w-6xl mx-auto px-4 py-20 md:py-28 text-center">
-          <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-white/80 text-xs font-medium px-4 py-1.5 rounded-full mb-6 backdrop-blur-sm">
-            <Zap size={12} className="text-yellow-400" /> 2,400+ new jobs posted
-            this week across East Africa
-          </div>
-
+        {/* Content - raised above overlays */}
+        <div className="relative z-20 max-w-6xl mx-auto px-4 py-20 md:py-28 text-center">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-5">
             Find your next great{" "}
             <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-400 to-indigo-400">
@@ -834,7 +836,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0">
+        <div className="absolute bottom-0 left-0 right-0 z-20">
           <svg
             viewBox="0 0 1440 60"
             fill="none"
@@ -845,20 +847,6 @@ export default function HomePage() {
               fill="white"
             />
           </svg>
-        </div>
-      </section>
-
-      {/* STATS */}
-      <section className="py-10 bg-white border-b border-gray-100">
-        <div className="max-w-5xl mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-            {STATS.map((s) => (
-              <div key={s.label}>
-                <p className="text-3xl font-bold text-blue-600">{s.value}</p>
-                <p className="text-sm text-gray-500 mt-1">{s.label}</p>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 
