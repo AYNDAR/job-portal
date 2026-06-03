@@ -30,27 +30,17 @@ model User {
 }
 
 model JobSeekerProfile {
-  id              String   @id @default(uuid())
-  user_id         String   @unique
-  user            User     @relation(fields: [user_id], references: [id])
-  full_name       String
-  title           String?
-  bio             String?
-  phone           String?
-  resume_url      String?
-  skills          String[]
-  location        String?
-  website         String?
-  linkedin        String?
-  github          String?
-  avatar_url      String?
-  certificates    Json?     // store as JSON array
-  projects        Json?     // store as JSON array
-  education       Json?     // store as JSON array
-  experience      Json?     // store as JSON array
-  languages       Json?     // store as JSON array
-  availability    String?
-  expected_salary String?
+ id          String   @id @default(uuid())
+  user_id     String   @unique
+  user        User     @relation(fields: [user_id], references: [id])
+  full_name   String
+  phone       String?
+  resume_url  String?
+  skills      String[]
+  location    String?
+  avatar_url  String? 
+   applications JobApplication[]   // opposite of JobApplication.seeker
+  bookmarks    JobBookmark[]      // opposite of JobBookmark.seeker
 }
 
 model EmployerProfile {

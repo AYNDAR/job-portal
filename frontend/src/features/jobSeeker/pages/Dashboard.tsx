@@ -95,6 +95,7 @@ interface ProfileData {
   linkedin: string;
   github: string;
   avatarUrl: string;
+  resume_url?: string;
   skills: Skill[];
   certificates: Certificate[];
   projects: Project[];
@@ -210,7 +211,7 @@ function DashboardNavbar({
             <div className="w-6 h-6 bg-blue-600 rounded-lg flex items-center justify-center text-white text-xs font-bold">
               {initial}
             </div>
-            <span className="text-sm font-medium text-gray-800 hidden sm:block max-w-[100px] truncate">
+            <span className="text-sm font-medium text-gray-800 hidden sm:block max-w-25 truncate">
               {user?.name || user?.email?.split("@")[0] || "Account"}
             </span>
             <ChevronDown
@@ -443,41 +444,20 @@ export default function JobSeekerDashboard() {
     api
       .get("/jobseeker/profile")
       .then((res) => {
-        const server = res.data as Partial<ProfileData>;
-        if (!server || Object.keys(server).length === 0) return;
+        const server = res.data;
+        console.log("Profile from backend:", server);
         setProfile((prev) => ({
           ...prev,
-          // Only overwrite with non-empty server values
-          ...(server.fullName ? { fullName: server.fullName } : {}),
-          ...(server.title ? { title: server.title } : {}),
-          ...(server.bio ? { bio: server.bio } : {}),
-          ...(server.email ? { email: server.email } : {}),
-          ...(server.phone ? { phone: server.phone } : {}),
-          ...(server.location ? { location: server.location } : {}),
-          ...(server.website ? { website: server.website } : {}),
-          ...(server.linkedin ? { linkedin: server.linkedin } : {}),
-          ...(server.github ? { github: server.github } : {}),
-          ...(server.avatarUrl ? { avatarUrl: server.avatarUrl } : {}),
-          ...(server.availability ? { availability: server.availability } : {}),
-          ...(server.expectedSalary
-            ? { expectedSalary: server.expectedSalary }
-            : {}),
-          // Only overwrite arrays if server has non-empty data
-          ...(server.skills?.length ? { skills: server.skills } : {}),
-          ...(server.certificates?.length
-            ? { certificates: server.certificates }
-            : {}),
-          ...(server.projects?.length ? { projects: server.projects } : {}),
-          ...(server.education?.length ? { education: server.education } : {}),
-          ...(server.experience?.length
-            ? { experience: server.experience }
-            : {}),
-          ...(server.languages?.length ? { languages: server.languages } : {}),
+          fullName: server.fullName || prev.fullName,
+          phone: server.phone || prev.phone,
+          location: server.location || prev.location,
+          skills: server.skills || prev.skills,
+          avatarUrl: server.avatarUrl || prev.avatarUrl,
         }));
+        if (server.resumeUrl) setResumeUrl(server.resumeUrl);
       })
-      .catch(() => {});
+      .catch((err) => console.error("Profile fetch error:", err));
   }, [dispatch]);
-
   // ── FIX: handleLogout defined BEFORE Sidebar ─────────────
   const handleLogout = () => {
     if (!window.confirm("Are you sure you want to sign out?")) return;
@@ -491,35 +471,100 @@ export default function JobSeekerDashboard() {
     setProfileLoading(true);
     setProfileError("");
     try {
-      await api.put("/jobseeker/profile", profile);
+      const payload: any = {};
+      if (profile.fullName && profile.fullName.trim() !== "")
+        payload.fullName = profile.fullName;
+      if (profile.phone && profile.phone.trim() !== "")
+        payload.phone = profile.phone;
+      if (profile.location && profile.location.trim() !== "")
+        payload.location = profile.location;
+      if (profile.skills && profile.skills.length > 0)
+        payload.skills = profile.skills;
+      if (resumeUrl && resumeUrl.trim() !== "") {
+        payload.resumeUrl = resumeUrl;
+        payload.resume_url = resumeUrl;
+      }
+      if (profile.avatarUrl && profile.avatarUrl.trim() !== "") {
+        payload.avatarUrl = profile.avatarUrl;
+        payload.avatar_url = profile.avatarUrl;
+      }
+      if (Object.keys(payload).length === 0) {
+        setProfileSaved(false);
+        return;
+      }
+      await api.put("/jobseeker/profile", payload);
       localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
       setProfileSaved(true);
       setTimeout(() => setProfileSaved(false), 3000);
-    } catch {
-      setProfileError("Failed to save profile. Please try again.");
+    } catch (error: any) {
+      console.error("Save profile error:", error);
+      setProfileError(error.response?.data?.error || "Failed to save profile");
     } finally {
       setProfileLoading(false);
     }
   };
 
-  const uploadAvatar = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const uploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setProfile((p) => ({ ...p, avatarUrl: URL.createObjectURL(file) }));
+    if (!file.type.startsWith("image/")) {
+      setProfileError("Please select an image file");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setProfileError("Image must be less than 2MB");
+      return;
+    }
+    setProfileLoading(true);
+    const formData = new FormData();
+    formData.append("avatar", file);
+    try {
+      const { data } = await api.post("/jobseeker/avatar", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setProfile((prev) => ({ ...prev, avatarUrl: data.url }));
+      await saveProfile(); // immediately save
+    } catch (err: any) {
+      console.error("Avatar upload error:", err);
+      setProfileError(err.response?.data?.error || "Failed to upload avatar");
+    } finally {
+      setProfileLoading(false);
+    }
   };
 
+  // ── FIX #3: uploadResume — saves URL to DB so applyToJob can read it ────────
   const uploadResume = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     setResumeUploading(true);
+    setProfileError("");
+
     try {
       const fd = new FormData();
       fd.append("resume", file);
+
+      // POST to /jobseeker/resume — backend saves resume_url to DB
       const { data } = await api.post("/jobseeker/resume", fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      setResumeUrl(data.url ?? URL.createObjectURL(file));
-    } catch {
+
+      const url = data.url || data.resumeUrl || URL.createObjectURL(file);
+      setResumeUrl(url);
+
+      // Also save resumeUrl inside profile so it persists across page switches
+      setProfile((p) => {
+        const updated = { ...p };
+        localStorage.setItem(PROFILE_KEY, JSON.stringify(updated));
+        return updated;
+      });
+      localStorage.setItem("jobseeker_resume_url", url);
+    } catch (err: any) {
+      console.error("Resume upload error:", err);
+      setProfileError(
+        err.response?.data?.error || "Resume upload failed. Please try again.",
+      );
+      // Fallback: keep local object URL so UI doesn't break
       setResumeUrl(URL.createObjectURL(file));
     } finally {
       setResumeUploading(false);
@@ -893,7 +938,7 @@ export default function JobSeekerDashboard() {
 
       {/* Hero card */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="h-20 bg-gradient-to-r from-blue-500 to-indigo-600" />
+        <div className="h-20 bg-linear-to-r from-blue-500 to-indigo-600" />
         <div className="px-6 pb-6">
           <div className="flex items-end gap-4 -mt-8 mb-4">
             <div className="relative">
@@ -1801,7 +1846,9 @@ export default function JobSeekerDashboard() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {bookmarks.map((bm: any) => {
-            const job = jobs.find((j: any) => j.id === bm.jobId);
+            // FIX: use bm.job from the bookmark (returned by backend with include)
+            // fallback to searching jobs array if bm.job not present
+            const job = bm.job || jobs.find((j: any) => j.id === bm.jobId);
             return (
               <div
                 key={bm.jobId}
@@ -1817,25 +1864,61 @@ export default function JobSeekerDashboard() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900">
-                      {job?.title ?? bm.jobId}
+                      {job?.title ?? "Job #" + bm.jobId}
                     </p>
                     {job && (
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-gray-400 mt-0.5">
                         {job.company} · {job.location}
                       </p>
                     )}
                   </div>
                 </div>
+
                 {job && (
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
-                    <span className="text-sm font-semibold text-gray-800">
-                      {job.salaryRange}
-                    </span>
+                  <>
+                    <div className="flex flex-wrap gap-1.5 mt-3">
+                      {job.employmentType && (
+                        <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                          {job.employmentType}
+                        </span>
+                      )}
+                      {job.industry && (
+                        <span className="text-xs text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full">
+                          {job.industry}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
+                      <span className="text-sm font-semibold text-gray-800">
+                        {job.salaryRange || "Competitive"}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => dispatch(bookmarkJob(bm.jobId))}
+                          className="text-xs text-red-400 hover:text-red-600 transition"
+                          title="Remove bookmark"
+                        >
+                          Remove
+                        </button>
+                        <Link
+                          to={`/jobs/${job.id || bm.jobId}`}
+                          className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-xl hover:bg-blue-700 transition font-medium"
+                        >
+                          Apply Now
+                        </Link>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* If job details not loaded yet */}
+                {!job && (
+                  <div className="mt-3 pt-3 border-t border-gray-50 flex justify-end">
                     <Link
-                      to={`/jobs/${job.id}`}
+                      to={`/jobs/${bm.jobId}`}
                       className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-xl hover:bg-blue-700 transition font-medium"
                     >
-                      Apply Now
+                      View Job
                     </Link>
                   </div>
                 )}

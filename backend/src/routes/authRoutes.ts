@@ -8,7 +8,7 @@ import { sendResetCode } from "../services/emailService";
 const router = Router();
 
 router.post("/register", register);
-router.post("/login", loginLimiter, login);
+router.post("/login", login);
 // Temporary store for reset codes (in production use Redis or DB table)
 const resetCodes = new Map<string, { code: string; expires: number }>();
 

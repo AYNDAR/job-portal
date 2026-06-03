@@ -6,20 +6,21 @@ const API_BASE_URL =
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
-  timeout: 10000,
 });
 
-// Attach token to every request
+// Request interceptor: attach token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
-    if (token) config.headers.Authorization = `Bearer ${token}`;
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => Promise.reject(error),
 );
 
-// Redirect to login on 401
+// Response interceptor: handle 401
 api.interceptors.response.use(
   (response) => response,
   (error) => {

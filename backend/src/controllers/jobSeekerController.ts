@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
+import { AuthRequest } from "../middlewares/authMiddleware";
 
 // GET /api/jobseeker/profile
 export const getJobSeekerProfile = async (req: Request, res: Response) => {
@@ -19,50 +20,28 @@ export const getJobSeekerProfile = async (req: Request, res: Response) => {
 };
 
 // PUT /api/jobseeker/profile
-export const updateJobSeekerProfile = async (req: Request, res: Response) => {
+export const updateJobSeekerProfile = async (
+  req: AuthRequest,
+  res: Response,
+) => {
   try {
-    const userId = (req as any).user.id;
-    const {
-      fullName,
-      title,
-      bio,
-      phone,
-      location,
-      website,
-      linkedin,
-      github,
-      avatarUrl,
-      skills,
-      certificates,
-      projects,
-      education,
-      experience,
-      languages,
-      availability,
-      expectedSalary,
-    } = req.body;
-
+    const userId = req.user?.userId;
+    const data = req.body;
+    const updateData: any = {};
+    if (data.fullName !== undefined) updateData.full_name = data.fullName;
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.bio !== undefined) updateData.bio = data.bio;
+    if (data.phone !== undefined) updateData.phone = data.phone;
+    if (data.location !== undefined) updateData.location = data.location;
+    if (data.website !== undefined) updateData.website = data.website;
+    if (data.linkedin !== undefined) updateData.linkedin = data.linkedin;
+    if (data.github !== undefined) updateData.github = data.github;
+    if (data.avatarUrl !== undefined) updateData.avatar_url = data.avatarUrl; // ✅ ADD THIS
+    if (data.resume_url !== undefined) updateData.resume_url = data.resume_url;
+    // ... other fields
     const updated = await prisma.jobSeekerProfile.update({
       where: { user_id: userId },
-      data: {
-        full_name: fullName,
-        title,
-        bio,
-        phone,
-        location,
-        website,
-        linkedin,
-        github,
-        avatar_url: avatarUrl,
-        skills,
-        certificates,
-        projects,
-        education,
-        experience,
-        languages,
-        availability,
-        expected_salary: expectedSalary,
-      },
+      data: updateData,
     });
     res.json(updated);
   } catch (error) {

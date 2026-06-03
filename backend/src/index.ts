@@ -11,6 +11,11 @@ import notificationRoutes from "./routes/notificationRoutes";
 import { errorHandler } from "./middlewares/errorHandler";
 import userRoutes from "./routes/userRoutes";
 import jobSeekerRoutes from "./routes/jobSeekerRoutes";
+import {
+  uploadResumeMiddleware,
+  uploadResume,
+} from "./controllers/fileController";
+import { verifyToken } from "./middlewares/authMiddleware";
 import path from "path";
 
 dotenv.config();
@@ -35,6 +40,12 @@ app.get("/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date() });
 });
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+app.post(
+  "/api/upload/resume",
+  verifyToken,
+  uploadResumeMiddleware,
+  uploadResume,
+);
 
 app.use(errorHandler);
 

@@ -3,6 +3,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { prisma } from "../config/database";
+import cloudinary from "../config/cloudinary";
 
 // Extend Express Request to include user and file
 interface AuthRequest extends Request {
@@ -43,5 +44,30 @@ export const uploadResume = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Upload failed" });
+  }
+};
+
+export const uploadAvatar = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+    const result = await new Promise<{ secure_url: string }>(
+      (resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            folder: "job-portal/avatars",
+            transformation: [{ width: 200, height: 200, crop: "limit" }],
+          },
+          (err: any, result: any) => (err ? reject(err) : resolve(result)),
+        );
+        stream.end(req.file!.buffer);
+      },
+    );
+    const avatarUrl = result.secure_url;
+    res.json({ url: avatarUrl });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Avatar upload failed" });
   }
 };

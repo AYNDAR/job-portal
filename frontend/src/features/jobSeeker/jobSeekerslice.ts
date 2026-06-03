@@ -1,7 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/features/jobSeeker/jobSeekerSlice.ts
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import api from "../../services/api";
-// import api from "../../services/api"; // TODO: Uncomment when backend endpoints are ready
 
 // ===== TYPES =====
 export interface Job {
@@ -43,51 +43,29 @@ export interface Company {
   logo?: string;
 }
 
-// ===== MOCK DATA (fallback when backend is not ready) =====
-const mockJobs: Job[] = [
-  {
-    id: "1",
-    title: "Senior Frontend Developer",
-    company: "TechCorp",
-    location: "New York, NY",
-    salaryRange: "$120k - $150k",
-    employmentType: "Full-time",
-    industry: "Technology",
-    description:
-      "Looking for an experienced React developer to lead our frontend team.",
-  },
-  {
-    id: "2",
-    title: "Full Stack Engineer",
-    company: "StartupX",
-    location: "San Francisco, CA (Remote)",
-    salaryRange: "$140k - $180k",
-    employmentType: "Remote",
-    industry: "Technology",
-    description:
-      "Join our fast-growing startup to build both frontend and backend systems.",
-  },
-];
-
-const mockApplications: Application[] = [];
-const mockBookmarks: Bookmark[] = [];
-
 // ===== ASYNC THUNKS =====
+
 export const fetchJobs = createAsyncThunk<Job[], JobFilters>(
   "jobSeeker/fetchJobs",
   async (filters) => {
-    let filtered = [...mockJobs];
-    if (filters.keyword) {
-      filtered = filtered.filter((job) =>
-        job.title.toLowerCase().includes(filters.keyword!.toLowerCase()),
-      );
-    }
-    if (filters.location) {
-      filtered = filtered.filter((job) =>
-        job.location.toLowerCase().includes(filters.location!.toLowerCase()),
-      );
-    }
-    return filtered;
+    const params = new URLSearchParams();
+    if (filters.keyword) params.append("keyword", filters.keyword);
+    if (filters.location) params.append("location", filters.location);
+    if (filters.industry) params.append("industry", filters.industry);
+    const response = await api.get(`/jobs?${params.toString()}`);
+    const jobsData = response.data.jobs || response.data;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return jobsData.map((job: any) => ({
+      id: job.id,
+      title: job.title,
+      company: job.employer?.company_name || job.company || "",
+      location: job.location || "",
+      salaryRange: job.salary_range || job.salaryRange || "",
+      employmentType:
+        job.employment_type?.type_name || job.employmentType || "",
+      industry: job.industry?.industry_name || job.industry || "",
+      description: job.description || "",
+    }));
   },
 );
 
@@ -99,19 +77,74 @@ export const searchJobs = createAsyncThunk<Job[], JobFilters>(
     if (filters.location) params.append("location", filters.location);
     if (filters.industry) params.append("industry", filters.industry);
     const response = await api.get(`/jobs?${params.toString()}`);
-    // Backend returns { jobs: [...] } or just [...]
     const jobsData = response.data.jobs || response.data;
-    // Map backend fields to frontend Job interface if needed
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return jobsData.map((job: any) => ({
       id: job.id,
       title: job.title,
-      company: job.employer?.company_name || job.company,
-      location: job.location,
-      salaryRange: job.salary_range || job.salaryRange,
-      employmentType: job.employment_type?.type_name || job.employmentType,
-      industry: job.industry?.industry_name || job.industry,
-      description: job.description,
+      company: job.employer?.company_name || job.company || "",
+      location: job.location || "",
+      salaryRange: job.salary_range || job.salaryRange || "",
+      employmentType:
+        job.employment_type?.type_name || job.employmentType || "",
+      industry: job.industry?.industry_name || job.industry || "",
+      description: job.description || "",
+    }));
+  },
+);
+
+export const bookmarkJob = createAsyncThunk<
+  { jobId: string; bookmarked: boolean },
+  string
+>("jobSeeker/bookmarkJob", async (jobId) => {
+  // FIX: correct endpoint matches jobseekerRoutes.ts
+  const res = await api.post(`/jobseeker/bookmarks/${jobId}`);
+  return { jobId, bookmarked: res.data.bookmarked };
+});
+
+// ✅ FIXED: fetchBookmarks now uses the correct endpoint and maps the response
+export const fetchBookmarks = createAsyncThunk<Bookmark[]>(
+  "jobSeeker/fetchBookmarks",
+  async () => {
+    // FIX: correct endpoint matches jobseekerRoutes.ts
+    const response = await api.get("/jobseeker/bookmarks");
+    const data = Array.isArray(response.data) ? response.data : [];
+    return data.map((bm: any) => ({
+      // Backend now returns { jobId, job: { id, title, company, ... } }
+      jobId: bm.jobId || bm.job_id || bm.job?.id || "",
+      job: bm.job || undefined,
+    }));
+  },
+);
+
+// ✅ FIXED: fetchApplications now uses the REAL API endpoint
+export const fetchApplications = createAsyncThunk<Application[]>(
+  "jobSeeker/fetchApplications",
+  async () => {
+    const response = await api.get("/applications/my-applications");
+    let data = response.data;
+    // Handle different possible response shapes
+    if (Array.isArray(data)) {
+      // already array
+    } else if (data.data && Array.isArray(data.data)) {
+      data = data.data;
+    } else if (data.applications && Array.isArray(data.applications)) {
+      data = data.applications;
+    } else {
+      data = [];
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return data.map((app: any) => ({
+      id: String(app.id),
+      jobId: String(app.job_id || app.jobId || app.job?.id || ""),
+      jobTitle: app.job?.title || app.jobTitle || "Unknown Job",
+      status: app.status?.status_name || app.status || "Pending",
+      appliedAt:
+        app.applied_at ||
+        app.appliedAt ||
+        app.created_at ||
+        new Date().toISOString(),
     }));
   },
 );
@@ -119,75 +152,45 @@ export const searchJobs = createAsyncThunk<Job[], JobFilters>(
 export const applyToJob = createAsyncThunk<
   Application,
   { jobId: string; coverLetter: string; resumeUrl: string }
->("jobSeeker/applyToJob", async ({ jobId }) => {
-  const job = mockJobs.find((j) => j.id === jobId);
-  return {
-    id: `app_${Date.now()}`,
+>("jobSeeker/applyToJob", async ({ jobId, coverLetter, resumeUrl }) => {
+  const response = await api.post("/applications", {
     jobId,
-    jobTitle: job?.title || "",
-    status: "Pending",
-    appliedAt: new Date().toISOString(),
+    job_id: jobId,
+    coverLetter,
+    cover_letter: coverLetter,
+    resume_url: resumeUrl,
+    resumeUrl,
+  });
+  const app = response.data.application || response.data;
+  return {
+    id: String(app.id || Date.now()),
+    jobId: String(app.job_id || app.jobId || jobId),
+    jobTitle: app.job?.title || app.jobTitle || "",
+    status: app.status?.status_name || app.status || "Pending",
+    appliedAt: app.applied_at || app.appliedAt || new Date().toISOString(),
   };
 });
-
-export const bookmarkJob = createAsyncThunk<{ jobId: string }, string>(
-  "jobSeeker/bookmarkJob",
-  async (jobId) => {
-    await api.post(`/jobs/${jobId}/bookmark`);
-    return { jobId };
-  },
-);
-
-export const fetchBookmarks = createAsyncThunk<Bookmark[]>(
-  "jobSeeker/fetchBookmarks",
-  async () => {
-    const response = await api.get("/jobseeker/bookmarks");
-    return response.data;
-  },
-);
-
-export const fetchApplications = createAsyncThunk<Application[]>(
-  "jobSeeker/fetchApplications",
-  async () => {
-    return mockApplications;
-  },
-);
 
 export const fetchCompanies = createAsyncThunk<Company[]>(
   "jobSeeker/fetchCompanies",
   async () => {
-    // Mock company data – replace with real API call later
-    const mockCompanies: Company[] = [
-      {
-        id: "1",
-        name: "TechCorp",
-        industry: "Technology",
-        jobsCount: 24,
-        verified: true,
-      },
-      {
-        id: "2",
-        name: "HealthPlus",
-        industry: "Healthcare",
-        jobsCount: 18,
-        verified: true,
-      },
-      {
-        id: "3",
-        name: "FinEdge",
-        industry: "Finance",
-        jobsCount: 15,
-        verified: true,
-      },
-      {
-        id: "4",
-        name: "Designify",
-        industry: "Design",
-        jobsCount: 11,
-        verified: false,
-      },
-    ];
-    return mockCompanies;
+    try {
+      const res = await api.get("/employers");
+      const data = Array.isArray(res.data)
+        ? res.data
+        : res.data.companies || res.data.data || [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return data.map((co: any) => ({
+        id: String(co.id),
+        name: co.company_name || co.name || "",
+        industry: co.industry || "",
+        jobsCount: co.jobCount || co.jobs_count || 0,
+        verified: co.verified || false,
+        logo: co.logo_url || co.logo || "",
+      }));
+    } catch {
+      return [];
+    }
   },
 );
 
@@ -217,8 +220,10 @@ const jobSeekerSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
+      // ── searchJobs ──────────────────────────────────────────
       .addCase(searchJobs.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(searchJobs.fulfilled, (state, action: PayloadAction<Job[]>) => {
         state.loading = false;
@@ -228,6 +233,50 @@ const jobSeekerSlice = createSlice({
         state.loading = false;
         state.error = "Failed to load jobs";
       })
+
+      // ── fetchJobs ───────────────────────────────────────────
+      .addCase(fetchJobs.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchJobs.fulfilled, (state, action: PayloadAction<Job[]>) => {
+        state.loading = false;
+        state.jobs = action.payload;
+      })
+      .addCase(fetchJobs.rejected, (state) => {
+        state.loading = false;
+        state.error = "Failed to load jobs";
+      })
+
+      // ── fetchApplications ───────────────────────────────────
+      .addCase(fetchApplications.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(
+        fetchApplications.fulfilled,
+        (state, action: PayloadAction<Application[]>) => {
+          state.loading = false;
+          state.applications = action.payload;
+        },
+      )
+      .addCase(fetchApplications.rejected, (state) => {
+        state.loading = false;
+        state.error = "Failed to load applications";
+      })
+
+      // ── applyToJob ──────────────────────────────────────────
+      .addCase(
+        applyToJob.fulfilled,
+        (state, action: PayloadAction<Application>) => {
+          const exists = state.applications.some(
+            (a) => a.id === action.payload.id,
+          );
+          if (!exists) state.applications.unshift(action.payload);
+        },
+      )
+
+      // ── bookmarkJob ─────────────────────────────────────────
       .addCase(bookmarkJob.fulfilled, (state, action) => {
         const exists = state.bookmarks.some(
           (b) => b.jobId === action.payload.jobId,
@@ -240,9 +289,23 @@ const jobSeekerSlice = createSlice({
           );
         }
       })
-      .addCase(fetchBookmarks.fulfilled, (state, action) => {
-        state.bookmarks = action.payload;
-      });
+
+      // ── fetchBookmarks ──────────────────────────────────────
+      .addCase(
+        fetchBookmarks.fulfilled,
+        (state, action: PayloadAction<Bookmark[]>) => {
+          state.bookmarks = action.payload;
+        },
+      )
+
+      // ── fetchCompanies ──────────────────────────────────────
+      .addCase(
+        fetchCompanies.fulfilled,
+        (state, action: PayloadAction<Company[]>) => {
+          state.companies = action.payload;
+        },
+      );
   },
 });
+
 export default jobSeekerSlice.reducer;

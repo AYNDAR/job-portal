@@ -10,8 +10,18 @@ interface AuthState {
   error: string | null;
 }
 
+// Helper to get user from localStorage (safe JSON parse)
+const getUserFromStorage = () => {
+  try {
+    const userStr = localStorage.getItem("user");
+    return userStr ? JSON.parse(userStr) : null;
+  } catch {
+    return null;
+  }
+};
+
 const initialState: AuthState = {
-  user: null,
+  user: getUserFromStorage(),
   token: localStorage.getItem("token"),
   loading: false,
   error: null,
@@ -27,6 +37,7 @@ export const login = createAsyncThunk(
 
 export const logout = createAsyncThunk("auth/logout", async () => {
   localStorage.removeItem("token");
+  localStorage.removeItem("user");
   return null;
 });
 
@@ -47,10 +58,12 @@ const authSlice = createSlice({
       .addCase(login.fulfilled, (state, action) => {
         state.loading = false;
         state.user = action.payload.user;
-        // ✅ Ensure token is a string (fallback to null if undefined)
         state.token = action.payload.token || null;
         if (action.payload.token) {
           localStorage.setItem("token", action.payload.token);
+        }
+        if (action.payload.user) {
+          localStorage.setItem("user", JSON.stringify(action.payload.user));
         }
       })
       .addCase(login.rejected, (state, action) => {

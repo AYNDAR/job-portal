@@ -34,7 +34,6 @@ export default function JobDetailsPage() {
       try {
         const res = await api.get(`/jobs/${id}`);
         setJob(res.data);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         setError(err.response?.data?.error || "Failed to load job details");
       } finally {
@@ -46,7 +45,8 @@ export default function JobDetailsPage() {
 
   const handleApply = () => {
     if (!token) {
-      navigate("/login");
+      // Pass the intended destination (apply page) to login so it redirects there
+      navigate("/login", { state: { from: `/apply/${id}` } });
       return;
     }
     if (user?.userType !== "Job Seeker") {

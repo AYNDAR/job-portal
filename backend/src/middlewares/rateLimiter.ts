@@ -4,13 +4,13 @@ import { AuthRequest } from "./authMiddleware";
 
 export const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 100,
   message: { error: "Too many login attempts, please try again later" },
 });
 
 export const jobPostLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 10,
+  max: 20,
   keyGenerator: (req: Request) => {
     const authReq = req as AuthRequest;
     if (authReq.user?.userId) return authReq.user.userId;

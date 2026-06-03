@@ -6,6 +6,12 @@ export const requireRole = (allowedTypes: string[]) => {
   return async (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) return res.status(401).json({ error: "Unauthorized" });
 
+    const fileFilter = (req: any, file: any, cb: any) => {
+      const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+      if (allowed.includes(file.mimetype)) cb(null, true);
+      else cb(new Error("Unsupported file type"), false);
+    };
+
     const userType = await prisma.userType.findUnique({
       where: { id: req.user.userTypeId },
     });
