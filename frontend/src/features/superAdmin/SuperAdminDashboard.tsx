@@ -1,233 +1,137 @@
-import { useAppSelector } from "../../store/hooks";
+import { useState } from "react";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { useAppDispatch } from "../../store/hooks";
+import { logout } from "../../store/authSlice";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "../../components/ui/tabs";
-import ManageUsers from "../admin/ManageUsers";
-import ManageJobs from "../admin/ManageJobs";
-import AdminUsersManager from "../../components/admin/AdminUsersManager";
-import {
+  LayoutDashboard,
   Users,
   Briefcase,
   FileText,
+  Settings,
   Shield,
-  Server,
-  Activity,
-  UserPlus,
-  Download,
-  Trash2,
   BarChart,
+  LogOut,
+  Menu,
+  ChevronLeft,
 } from "lucide-react";
+import LogoutConfirmModal from "../../components/common/LogoutConfirmModal";
+import NotificationBell from "../../components/common/NotificationBell";
 
-// Mock data – replace with API later
-const mockStats = {
-  totalUsers: 1542,
-  activeJobs: 423,
-  totalApplications: 3248,
-  administrators: 56,
-};
-
-const mockSystemStatus = {
-  serverStatus: "Operational",
-  database: "Connected",
-  storageUsed: "73%",
-  activeSessions: 342,
-};
-
-const mockRecentAdminActivities = [
+const menuItems = [
   {
-    id: 1,
-    action: "Admin John updated system settings",
-    time: "2h ago",
-    admin: "John",
+    name: "Dashboard",
+    path: "/super-admin",
+    icon: <LayoutDashboard size={18} />,
   },
+  { name: "Users", path: "/super-admin/users", icon: <Users size={18} /> },
+  { name: "Jobs", path: "/super-admin/jobs", icon: <Briefcase size={18} /> },
   {
-    id: 2,
-    action: "Admin Sarah created new admin account",
-    time: "5h ago",
-    admin: "Sarah",
+    name: "Applications",
+    path: "/super-admin/applications",
+    icon: <FileText size={18} />,
   },
+  { name: "System", path: "/super-admin/system", icon: <Settings size={18} /> },
+  { name: "Admins", path: "/super-admin/admins", icon: <Shield size={18} /> },
   {
-    id: 3,
-    action: "Admin Mike deleted job post #1234",
-    time: "1d ago",
-    admin: "Mike",
-  },
-];
-
-const quickActions = [
-  {
-    label: "Add New Admin",
-    icon: <UserPlus className="h-5 w-5" />,
-    link: "#",
-    onClick: () =>
-      document
-        .querySelector('[value="admins"]')
-        ?.dispatchEvent(new Event("click")),
-  },
-  {
-    label: "System Backup",
-    icon: <Download className="h-5 w-5" />,
-    link: "#",
-    onClick: () => alert("Backup started (demo)"),
-  },
-  {
-    label: "Clear Cache",
-    icon: <Trash2 className="h-5 w-5" />,
-    link: "#",
-    onClick: () => alert("Cache cleared (demo)"),
-  },
-  {
-    label: "View Reports",
-    icon: <BarChart className="h-5 w-5" />,
-    link: "#",
-    onClick: () => alert("Reports (demo)"),
+    name: "Analytics",
+    path: "/super-admin/analytics",
+    icon: <BarChart size={18} />,
   },
 ];
 
 export default function SuperAdminDashboard() {
-  const { user } = useAppSelector((state) => state.auth);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const displayName = user?.email?.split("@")[0] || "Super Admin";
+  const navigate = useNavigate();
+  const location = useLocation();
+  const dispatch = useAppDispatch();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  const handleLogout = () => {
+    dispatch(logout());
+    navigate("/login");
+  };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Super Admin Dashboard</h1>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-l-blue-500">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-sm text-gray-500">Total Users</p>
-              <p className="text-2xl font-bold">{mockStats.totalUsers}</p>
-            </div>
-            <Users className="h-8 w-8 text-blue-500" />
-          </div>
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
+      {/* Sidebar */}
+      <aside
+        className={`${sidebarOpen ? "w-64" : "w-16"} bg-white border-r border-gray-100 flex flex-col transition-all duration-300 overflow-y-auto sticky top-0 h-screen`}
+      >
+        <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+          {sidebarOpen && (
+            <h1 className="text-xl font-bold text-purple-600">Super Admin</h1>
+          )}
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-1 rounded-lg hover:bg-gray-100 text-gray-500"
+          >
+            {sidebarOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}
+          </button>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-l-green-500">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-sm text-gray-500">Active Jobs</p>
-              <p className="text-2xl font-bold">{mockStats.activeJobs}</p>
-            </div>
-            <Briefcase className="h-8 w-8 text-green-500" />
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-l-yellow-500">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-sm text-gray-500">Total Applications</p>
-              <p className="text-2xl font-bold">
-                {mockStats.totalApplications}
-              </p>
-            </div>
-            <FileText className="h-8 w-8 text-yellow-500" />
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-l-purple-500">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-sm text-gray-500">Administrators</p>
-              <p className="text-2xl font-bold">{mockStats.administrators}</p>
-            </div>
-            <Shield className="h-8 w-8 text-purple-500" />
-          </div>
-        </div>
-      </div>
-
-      {/* System Overview & Recent Admin Activities */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Server className="h-5 w-5 text-gray-500" />
-            <h2 className="text-xl font-bold">System Overview</h2>
-          </div>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Server Status</span>
-              <span className="text-sm font-medium text-green-600">
-                {mockSystemStatus.serverStatus}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Database</span>
-              <span className="text-sm font-medium text-green-600">
-                {mockSystemStatus.database}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Storage</span>
-              <div className="flex items-center gap-2">
-                <span className="text-sm">{mockSystemStatus.storageUsed}</span>
-                <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-yellow-500 rounded-full"
-                    style={{ width: mockSystemStatus.storageUsed }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Active Sessions</span>
-              <span className="text-sm font-medium">
-                {mockSystemStatus.activeSessions}
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Activity className="h-5 w-5 text-gray-500" />
-            <h2 className="text-xl font-bold">Recent Admin Activities</h2>
-          </div>
-          <div className="space-y-3">
-            {mockRecentAdminActivities.map((activity) => (
-              <div key={activity.id} className="border-b pb-2 last:border-0">
-                <p className="text-sm text-gray-700">{activity.action}</p>
-                <p className="text-xs text-gray-400 mt-1">{activity.time}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow p-6 mb-8">
-        <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {quickActions.map((action) => (
+        <nav className="flex-1 p-3 space-y-1">
+          {menuItems.map((item) => (
             <button
-              key={action.label}
-              onClick={action.onClick}
-              className="flex flex-col items-center gap-2 p-4 border rounded-lg hover:bg-gray-50 transition"
+              key={item.path}
+              onClick={() => navigate(item.path)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                location.pathname === item.path
+                  ? "bg-purple-50 text-purple-700"
+                  : "text-gray-600 hover:bg-gray-50"
+              }`}
+              title={!sidebarOpen ? item.name : ""}
             >
-              {action.icon}
-              <span className="text-sm font-medium">{action.label}</span>
+              <span
+                className={
+                  location.pathname === item.path
+                    ? "text-purple-500"
+                    : "text-gray-400"
+                }
+              >
+                {item.icon}
+              </span>
+              {sidebarOpen && <span>{item.name}</span>}
             </button>
           ))}
+        </nav>
+        <div className="p-4 border-t border-gray-100">
+          <button
+            onClick={() => setShowLogoutModal(true)}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-red-500 hover:bg-red-50 transition"
+          >
+            <LogOut size={16} /> {sidebarOpen && "Sign out"}
+          </button>
         </div>
+      </aside>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-6 shrink-0">
+          <h1 className="text-base font-semibold text-gray-800">
+            {menuItems.find((i) => i.path === location.pathname)?.name ||
+              "Dashboard"}
+          </h1>
+          <div className="flex items-center gap-3">
+            <NotificationBell />
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-semibold">
+                SA
+              </div>
+              <span className="hidden md:block text-sm text-gray-700">
+                Super Admin
+              </span>
+            </div>
+          </div>
+        </header>
+        <main className="flex-1 overflow-y-auto p-6">
+          <Outlet />
+        </main>
       </div>
 
-      {/* User/Job Management Tabs */}
-      <Tabs defaultValue="users" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="jobs">Jobs</TabsTrigger>
-          <TabsTrigger value="admins">Admin Users</TabsTrigger>
-        </TabsList>
-        <TabsContent value="users">
-          <ManageUsers />
-        </TabsContent>
-        <TabsContent value="jobs">
-          <ManageJobs />
-        </TabsContent>
-        <TabsContent value="admins">
-          <AdminUsersManager />
-        </TabsContent>
-      </Tabs>
+      <LogoutConfirmModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={handleLogout}
+      />
     </div>
   );
 }

@@ -10,6 +10,14 @@ import JobSeekerDashboard from "./features/jobSeeker/pages/Dashboard";
 import StatusPage from "./features/jobSeeker/pages/Status";
 import SettingsPage from "./features/jobSeeker/pages/Settings";
 import SuperAdminDashboard from "./features/superAdmin/SuperAdminDashboard";
+import SuperAdminDashboardHome from "./features/superAdmin/components/DashboardHome";
+import SystemOverview from "./features/superAdmin/components/SystemSettings";
+import AnalyticsDashboard from "./features/superAdmin/components/Analytics";
+import AdminsManagement from "./features/superAdmin/components/AdminsManagement";
+import UsersManagement from "./features/superAdmin/components/UsersManagement";
+import JobsManagement from "./features/superAdmin/components/JobsManagement";
+import ApplicationsManagement from "./features/superAdmin/components/ApplicationsManagement";
+
 import AdminDashboard from "./features/admin/AdminDashboard";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import Home from "./pages/Home";
@@ -39,11 +47,9 @@ function App() {
       <Route path="/" element={<Home />} />
       <Route path="/jobs" element={<FindJobsPage />} />
       <Route path="/companies" element={<CompaniesPage />} />
-
-      {/* Career Tips — fully PUBLIC, no ProtectedRoute (fix #3) */}
       <Route path="/career-tips" element={<CareerTipsPage />} />
 
-      {/* Job Detail — outside Layout → no extra navbar (fix #2) */}
+      {/* Job Detail — outside Layout */}
       <Route path="/jobs/:id" element={<JobDetailsPage />} />
 
       {/* Job Seeker Dashboard — own navbar */}
@@ -56,7 +62,7 @@ function App() {
         }
       />
 
-      {/* Admin */}
+      {/* Admin Dashboard */}
       <Route
         path="/admin/*"
         element={
@@ -66,15 +72,23 @@ function App() {
         }
       />
 
-      {/* Super Admin */}
+      {/* Super Admin Dashboard — with nested routes */}
       <Route
-        path="/super-admin"
+        path="/super-admin/*"
         element={
           <ProtectedRoute allowedRoles={["Super Admin"]}>
             <SuperAdminDashboard />
           </ProtectedRoute>
         }
-      />
+      >
+        <Route index element={<SuperAdminDashboardHome />} />
+        <Route path="users" element={<UsersManagement />} />
+        <Route path="jobs" element={<JobsManagement />} />
+        <Route path="applications" element={<ApplicationsManagement />} />
+        <Route path="system" element={<SystemOverview />} />
+        <Route path="admins" element={<AdminsManagement />} />
+        <Route path="analytics" element={<AnalyticsDashboard />} />
+      </Route>
 
       {/* Employer Dashboard */}
       <Route

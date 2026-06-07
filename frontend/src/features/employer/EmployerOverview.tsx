@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppSelector } from "../../store/hooks";
@@ -240,7 +241,7 @@ export default function EmployerOverview() {
                 onClick={() => navigate(a.path)}
                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition group text-left"
               >
-                <div className="w-8 h-8 bg-gray-50 group-hover:bg-white rounded-lg border border-gray-100 flex items-center justify-center flex-shrink-0 transition">
+                <div className="w-8 h-8 bg-gray-50 group-hover:bg-white rounded-lg border border-gray-100 flex items-center justify-center shrink-0 transition">
                   {a.icon}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -301,7 +302,7 @@ export default function EmployerOverview() {
                 key={job.id}
                 className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition"
               >
-                <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
                   <Briefcase size={14} className="text-blue-500" />
                 </div>
                 <div className="flex-1 min-w-0">
