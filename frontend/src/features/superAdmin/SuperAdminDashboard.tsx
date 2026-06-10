@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { useAppDispatch } from "../../store/hooks";
 import { logout } from "../../store/authSlice";
 import {
@@ -8,11 +8,13 @@ import {
   Briefcase,
   FileText,
   Settings,
-  Shield,
   BarChart,
   LogOut,
   Menu,
   ChevronLeft,
+  Tag,
+  Bell,
+  UserCog,
 } from "lucide-react";
 import LogoutConfirmModal from "../../components/common/LogoutConfirmModal";
 import NotificationBell from "../../components/common/NotificationBell";
@@ -24,14 +26,29 @@ const menuItems = [
     icon: <LayoutDashboard size={18} />,
   },
   { name: "Users", path: "/super-admin/users", icon: <Users size={18} /> },
+  { name: "Admins", path: "/super-admin/admins", icon: <UserCog size={18} /> },
   { name: "Jobs", path: "/super-admin/jobs", icon: <Briefcase size={18} /> },
   {
     name: "Applications",
     path: "/super-admin/applications",
     icon: <FileText size={18} />,
   },
+  {
+    name: "Industries",
+    path: "/super-admin/industries",
+    icon: <Tag size={18} />,
+  },
+  {
+    name: "Employment Types",
+    path: "/super-admin/employment-types",
+    icon: <Briefcase size={18} />,
+  },
+  {
+    name: "Notifications",
+    path: "/super-admin/notifications",
+    icon: <Bell size={18} />,
+  },
   { name: "System", path: "/super-admin/system", icon: <Settings size={18} /> },
-  { name: "Admins", path: "/super-admin/admins", icon: <Shield size={18} /> },
   {
     name: "Analytics",
     path: "/super-admin/analytics",
@@ -51,9 +68,18 @@ export default function SuperAdminDashboard() {
     navigate("/login");
   };
 
+  const userRaw = localStorage.getItem("user");
+  const user = userRaw ? JSON.parse(userRaw) : null;
+  const initials = user?.email?.[0]?.toUpperCase() || "SA";
+
+  // Find current page name from menuItems
+  const currentPage =
+    menuItems.find((item) => item.path === location.pathname)?.name ||
+    "Dashboard";
+
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-      {/* Sidebar */}
+      {/* Sidebar (unchanged) */}
       <aside
         className={`${sidebarOpen ? "w-64" : "w-16"} bg-white border-r border-gray-100 flex flex-col transition-all duration-300 overflow-y-auto sticky top-0 h-screen`}
       >
@@ -103,25 +129,61 @@ export default function SuperAdminDashboard() {
         </div>
       </aside>
 
-      {/* Main content */}
+      {/* Main content with sticky navbar */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-6 shrink-0">
-          <h1 className="text-base font-semibold text-gray-800">
-            {menuItems.find((i) => i.path === location.pathname)?.name ||
-              "Dashboard"}
-          </h1>
-          <div className="flex items-center gap-3">
-            <NotificationBell />
+        {/* Sticky navbar – dynamic title replaces "JobPortal" */}
+        <header className="sticky top-0 z-10 bg-white border-b border-gray-100 shadow-sm">
+          <div className="flex items-center justify-between px-6 py-3">
+            {/* Left side: only dynamic page title (no icon) */}
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-semibold">
-                SA
-              </div>
-              <span className="hidden md:block text-sm text-gray-700">
-                Super Admin
+              <span className="font-bold text-base text-gray-900">
+                {currentPage}
               </span>
+            </div>
+
+            {/* Center navigation links (optional, can be removed if not needed) */}
+            <div className="hidden md:flex items-center gap-1">
+              <Link
+                to="/jobs"
+                className="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              >
+                Find Jobs
+              </Link>
+              <Link
+                to="/companies"
+                className="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              >
+                Companies
+              </Link>
+              <Link
+                to="/career-tips"
+                className="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              >
+                Career Tips
+              </Link>
+            </div>
+
+            {/* Right side: user menu */}
+            <div className="flex items-center gap-3">
+              <NotificationBell />
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-semibold">
+                  {initials}
+                </div>
+                <span className="hidden md:block text-sm text-gray-700">
+                  {user?.email?.split("@")[0] || "Super Admin"}
+                </span>
+                <button
+                  onClick={() => setShowLogoutModal(true)}
+                  className="hidden md:block text-xs text-red-500 hover:text-red-700 font-medium ml-1 transition"
+                >
+                  Logout
+                </button>
+              </div>
             </div>
           </div>
         </header>
+
         <main className="flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>

@@ -17,13 +17,22 @@ import AdminsManagement from "./features/superAdmin/components/AdminsManagement"
 import UsersManagement from "./features/superAdmin/components/UsersManagement";
 import JobsManagement from "./features/superAdmin/components/JobsManagement";
 import ApplicationsManagement from "./features/superAdmin/components/ApplicationsManagement";
+import NotificationsManagement from "./features/superAdmin/components/NotificationsManagement";
+import EmploymentTypesManagement from "./features/superAdmin/components/EmploymentTypesManagement";
+import IndustriesManagement from "./features/superAdmin/components/IndustriesManagement";
+import AdminNotifications from "./features/admin/components/AdminNotifications";
 
+// Admin imports
 import AdminDashboard from "./features/admin/AdminDashboard";
+import AdminDashboardHome from "./features/admin/components/AdminDashboardHome";
+import AdminUsers from "./features/admin/components/AdminUsers";
+import AdminSettings from "./features/admin/components/AdminSettings";
+
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import Home from "./pages/Home";
 
 // Employer
-import EmployerLayout from "./components/employer/EmployerLayout";
+import EmployerDashboard from "./features/employer/EmployerDashboard";
 import EmployerOverview from "./features/employer/EmployerOverview";
 import EmployerJobsPage from "./features/employer/EmployerJobsPage";
 import EmployerApplicantsPage from "./features/employer/EmployerApplicantsPage";
@@ -35,6 +44,7 @@ import MyApplications from "./features/applications/MyApplications";
 import FindJobsPage from "./pages/FindJobsPage";
 import CompaniesPage from "./pages/CompaniesPage";
 import CareerTipsPage from "./pages/CareerTipsPage";
+console.log("✅ NEW EmployerDashboard (with home-page navbar) loaded");
 
 function App() {
   return (
@@ -43,16 +53,15 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-      {/* Public pages — own navbar */}
+      {/* Public pages */}
       <Route path="/" element={<Home />} />
       <Route path="/jobs" element={<FindJobsPage />} />
       <Route path="/companies" element={<CompaniesPage />} />
       <Route path="/career-tips" element={<CareerTipsPage />} />
 
-      {/* Job Detail — outside Layout */}
       <Route path="/jobs/:id" element={<JobDetailsPage />} />
 
-      {/* Job Seeker Dashboard — own navbar */}
+      {/* Job Seeker Dashboard */}
       <Route
         path="/dashboard"
         element={
@@ -62,7 +71,7 @@ function App() {
         }
       />
 
-      {/* Admin Dashboard */}
+      {/* Admin Dashboard – with nested routes */}
       <Route
         path="/admin/*"
         element={
@@ -70,9 +79,16 @@ function App() {
             <AdminDashboard />
           </ProtectedRoute>
         }
-      />
+      >
+        <Route index element={<AdminDashboardHome />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="jobs" element={<JobsManagement />} />
+        <Route path="applications" element={<ApplicationsManagement />} />
+        <Route path="notifications" element={<AdminNotifications />} />
+        <Route path="settings" element={<AdminSettings />} />
+      </Route>
 
-      {/* Super Admin Dashboard — with nested routes */}
+      {/* Super Admin Dashboard */}
       <Route
         path="/super-admin/*"
         element={
@@ -85,6 +101,12 @@ function App() {
         <Route path="users" element={<UsersManagement />} />
         <Route path="jobs" element={<JobsManagement />} />
         <Route path="applications" element={<ApplicationsManagement />} />
+        <Route path="industries" element={<IndustriesManagement />} />
+        <Route
+          path="employment-types"
+          element={<EmploymentTypesManagement />}
+        />
+        <Route path="notifications" element={<NotificationsManagement />} />
         <Route path="system" element={<SystemOverview />} />
         <Route path="admins" element={<AdminsManagement />} />
         <Route path="analytics" element={<AnalyticsDashboard />} />
@@ -95,7 +117,7 @@ function App() {
         path="/employer/dashboard"
         element={
           <ProtectedRoute allowedRoles={["Employer"]}>
-            <EmployerLayout />
+            <EmployerDashboard />
           </ProtectedRoute>
         }
       >
@@ -108,7 +130,7 @@ function App() {
         <Route path="settings" element={<EmployerSettingsPage />} />
       </Route>
 
-      {/* Layout wrapper — only for pages that need global Header/Footer */}
+      {/* Pages with global header/footer */}
       <Route element={<Layout />}>
         <Route
           path="/apply/:id"

@@ -1,25 +1,13 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
 import api from "../../../services/api";
 import { Search, Eye, X } from "lucide-react";
 
 interface Application {
   id: string;
-  job: {
-    id: string;
-    title: string;
-    employer: { company_name: string; location?: string };
-    industry: { industry_name: string };
-  };
-  seeker: {
-    id: string;
-    full_name: string;
-    email: string;
-    phone?: string;
-    location?: string;
-    resume_url?: string;
-  };
+  job: { title: string; employer: { company_name: string } };
+  seeker: { full_name: string; email: string };
   status: { status_name: string };
-  cover_letter?: string;
   applied_at: string;
 }
 
@@ -35,55 +23,27 @@ export default function ApplicationsManagement() {
     setLoading(true);
     try {
       const res = await api.get("/admin/applications");
-      setApplications(res.data);
-      setFiltered(res.data);
+      const safeData = (res.data || []).map((app: any) => ({
+        id: app.id || "",
+        job: {
+          title: app.job?.title || "Unknown Job",
+          employer: {
+            company_name: app.job?.employer?.company_name || "Unknown Company",
+          },
+        },
+        seeker: {
+          full_name: app.seeker?.full_name || "Unknown",
+          email: app.seeker?.email || "",
+        },
+        status: { status_name: app.status?.status_name || "Pending" },
+        applied_at: app.applied_at || new Date().toISOString(),
+      }));
+      setApplications(safeData);
+      setFiltered(safeData);
     } catch (error) {
-      console.error("Failed to fetch applications, using mock data", error);
-      // Mock data for demo (fallback)
-      const mockApps: Application[] = [
-        {
-          id: "1",
-          job: {
-            id: "j1",
-            title: "Senior React Developer",
-            employer: { company_name: "TechCorp", location: "Addis Ababa" },
-            industry: { industry_name: "Technology" },
-          },
-          seeker: {
-            id: "s1",
-            full_name: "Cherinet Darge",
-            email: "cherinet@example.com",
-            phone: "+251911223344",
-            location: "Addis Ababa",
-            resume_url: "#",
-          },
-          status: { status_name: "Pending" },
-          cover_letter: "I am very interested in this position...",
-          applied_at: new Date().toISOString(),
-        },
-        {
-          id: "2",
-          job: {
-            id: "j2",
-            title: "Financial Analyst",
-            employer: { company_name: "FinCorp", location: "Nairobi" },
-            industry: { industry_name: "Finance" },
-          },
-          seeker: {
-            id: "s2",
-            full_name: "Cherinet Darge",
-            email: "cherinet@example.com",
-            phone: "+251911223344",
-            location: "Addis Ababa",
-            resume_url: "#",
-          },
-          status: { status_name: "Pending" },
-          cover_letter: "I have a background in finance...",
-          applied_at: new Date(Date.now() - 5 * 86400000).toISOString(),
-        },
-      ];
-      setApplications(mockApps);
-      setFiltered(mockApps);
+      console.error("Failed to fetch applications", error);
+      setApplications([]);
+      setFiltered([]);
     } finally {
       setLoading(false);
     }
@@ -95,25 +55,28 @@ export default function ApplicationsManagement() {
 
   useEffect(() => {
     let result = [...applications];
-    if (search) {
+    if (search.trim() !== "") {
       const term = search.toLowerCase();
-      result = result.filter(
-        (a) =>
-          a.job.title.toLowerCase().includes(term) ||
-          a.seeker.full_name.toLowerCase().includes(term) ||
-          a.seeker.email.toLowerCase().includes(term),
-      );
+      result = result.filter((a) => {
+        const jobTitle = (a.job?.title || "").toLowerCase();
+        const applicantName = (a.seeker?.full_name || "").toLowerCase();
+        const applicantEmail = (a.seeker?.email || "").toLowerCase();
+        return (
+          jobTitle.includes(term) ||
+          applicantName.includes(term) ||
+          applicantEmail.includes(term)
+        );
+      });
     }
     if (statusFilter !== "All") {
-      result = result.filter((a) => a.status.status_name === statusFilter);
+      result = result.filter(
+        (a) => (a.status?.status_name || "") === statusFilter,
+      );
     }
     setFiltered(result);
   }, [search, statusFilter, applications]);
 
-  const viewDetails = (app: Application) => {
-    console.log("View clicked for app:", app);
-    setSelectedApp(app);
-  };
+  const viewDetails = (app: Application) => setSelectedApp(app);
   const closeModal = () => setSelectedApp(null);
 
   if (loading)
@@ -121,7 +84,6 @@ export default function ApplicationsManagement() {
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 justify-between">
         <div className="relative flex-1 max-w-md">
           <Search
@@ -149,7 +111,6 @@ export default function ApplicationsManagement() {
         </select>
       </div>
 
-      {/* Applications Table */}
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -224,20 +185,17 @@ export default function ApplicationsManagement() {
         </div>
       </div>
 
-      {/* View Application Modal */}
       {selectedApp && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
           onClick={closeModal}
         >
           <div
-            className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-gray-900">
-                Application Details
-              </h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold">Application Details</h3>
               <button
                 onClick={closeModal}
                 className="text-gray-400 hover:text-gray-600"
@@ -245,47 +203,27 @@ export default function ApplicationsManagement() {
                 <X size={20} />
               </button>
             </div>
-            <div className="p-6 space-y-5">
-              <div>
-                <strong>Job Title:</strong> {selectedApp.job.title}
-              </div>
-              <div>
+            <div className="space-y-2 text-sm">
+              <p>
+                <strong>Job:</strong> {selectedApp.job.title}
+              </p>
+              <p>
                 <strong>Company:</strong>{" "}
                 {selectedApp.job.employer.company_name}
-              </div>
-              <div>
+              </p>
+              <p>
                 <strong>Applicant:</strong> {selectedApp.seeker.full_name}
-              </div>
-              <div>
+              </p>
+              <p>
                 <strong>Email:</strong> {selectedApp.seeker.email}
-              </div>
-              <div>
+              </p>
+              <p>
                 <strong>Status:</strong> {selectedApp.status.status_name}
-              </div>
-              <div>
-                <strong>Applied on:</strong>{" "}
+              </p>
+              <p>
+                <strong>Applied:</strong>{" "}
                 {new Date(selectedApp.applied_at).toLocaleString()}
-              </div>
-              {selectedApp.cover_letter && (
-                <div>
-                  <strong>Cover Letter:</strong>{" "}
-                  <p className="mt-1 bg-gray-50 p-2 rounded">
-                    {selectedApp.cover_letter}
-                  </p>
-                </div>
-              )}
-              {selectedApp.seeker.resume_url && (
-                <div>
-                  <strong>Resume:</strong>{" "}
-                  <a
-                    href={selectedApp.seeker.resume_url}
-                    target="_blank"
-                    className="text-blue-600 underline"
-                  >
-                    View Resume
-                  </a>
-                </div>
-              )}
+              </p>
             </div>
           </div>
         </div>

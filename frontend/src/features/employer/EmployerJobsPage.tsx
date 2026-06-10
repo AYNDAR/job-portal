@@ -11,9 +11,13 @@ import {
   Clock,
   Filter,
   Eye,
-  Send,
   Trash2,
   ChevronDown,
+  Edit2,
+  XCircle,
+  CheckCircle,
+  X,
+  Loader2,
 } from "lucide-react";
 
 function StatusBadge({ status }: { status: string }) {
@@ -42,7 +46,15 @@ export default function EmployerJobsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatus] = useState("All");
-  const [publishing, setPublishing] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [editingJob, setEditingJob] = useState<Job | null>(null);
+  const [editForm, setEditForm] = useState({
+    title: "",
+    description: "",
+    salary_range: "",
+    location: "",
+  });
+  const [saving, setSaving] = useState(false);
 
   const fetchJobs = async () => {
     try {
@@ -71,33 +83,97 @@ export default function EmployerJobsPage() {
     setFiltered(result);
   }, [search, statusFilter, jobs]);
 
-  const publishJob = async (jobId: string) => {
-    if (!confirm("Publish this job? It will become visible to job seekers."))
+  const closeJob = async (jobId: string) => {
+    if (
+      !confirm("Close this job? It will no longer be visible to job seekers.")
+    )
       return;
-    setPublishing(jobId);
+    setActionLoading(jobId);
+    setJobs((prev) =>
+      prev.map((j) =>
+        j.id === jobId ? { ...j, status: { status_name: "Closed" } } : j,
+      ),
+    );
     try {
-      await api.patch(`/employer/jobs/${jobId}/publish`);
+      await api.patch(`/employer/jobs/${jobId}/close`);
       await fetchJobs();
     } catch {
-      alert("Failed to publish job.");
+      alert("Failed to close job");
+      await fetchJobs();
     } finally {
-      setPublishing(null);
+      setActionLoading(null);
+    }
+  };
+
+  const reopenJob = async (jobId: string) => {
+    if (!confirm("Reopen this job? It will become visible to job seekers."))
+      return;
+    setActionLoading(jobId);
+    setJobs((prev) =>
+      prev.map((j) =>
+        j.id === jobId ? { ...j, status: { status_name: "Open" } } : j,
+      ),
+    );
+    try {
+      await api.patch(`/employer/jobs/${jobId}/open`);
+      await fetchJobs();
+    } catch {
+      alert("Failed to reopen job");
+      await fetchJobs();
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const deleteJob = async (jobId: string) => {
-    if (!confirm("Delete this job post?")) return;
+    if (!confirm("Delete this job post? This action cannot be undone.")) return;
+    setActionLoading(jobId);
+    setJobs((prev) => prev.filter((j) => j.id !== jobId));
     try {
       await api.delete(`/employer/jobs/${jobId}`);
-      await fetchJobs();
     } catch {
-      alert("Failed to delete job.");
+      alert("Failed to delete job");
+      await fetchJobs();
+    } finally {
+      setActionLoading(null);
     }
+  };
+
+  const openEditModal = (job: Job) => {
+    setEditingJob(job);
+    setEditForm({
+      title: job.title,
+      description: job.description,
+      salary_range: job.salary_range || "",
+      location: job.location || "",
+    });
+  };
+
+  const closeEditModal = () => {
+    setEditingJob(null);
+    setEditForm({ title: "", description: "", salary_range: "", location: "" });
+  };
+
+  const saveEdit = async () => {
+    if (!editingJob) return;
+    setSaving(true);
+    try {
+      await api.put(`/employer/jobs/${editingJob.id}`, editForm);
+      await fetchJobs();
+      closeEditModal();
+    } catch {
+      alert("Failed to update job");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const viewApplicants = (jobId: string) => {
+    navigate(`/employer/dashboard/applicants?jobId=${jobId}`);
   };
 
   return (
     <div className="space-y-5 max-w-5xl mx-auto">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-gray-900">My Job Posts</h2>
@@ -107,13 +183,12 @@ export default function EmployerJobsPage() {
         </div>
         <button
           onClick={() => navigate("/employer/dashboard/post")}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-xl transition shadow-sm"
+          className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium px-4 py-2 rounded-xl transition shadow-sm"
         >
           <PlusCircle size={15} /> Post a Job
         </button>
       </div>
 
-      {/* Filters */}
       <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search
@@ -125,7 +200,7 @@ export default function EmployerJobsPage() {
             placeholder="Search jobs..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition"
+            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-100 focus:border-purple-300 transition"
           />
         </div>
         <div className="relative">
@@ -136,19 +211,13 @@ export default function EmployerJobsPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatus(e.target.value)}
-            className="pl-8 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 appearance-none bg-white cursor-pointer"
+            className="pl-8 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-100 appearance-none bg-white cursor-pointer"
           >
-            {[
-              "All",
-              "Open",
-              "Active",
-              "Draft",
-              "Closed",
-              "Pending",
-              "Published",
-            ].map((s) => (
-              <option key={s}>{s}</option>
-            ))}
+            {["All", "Open", "Closed", "Draft", "Pending", "Published"].map(
+              (s) => (
+                <option key={s}>{s}</option>
+              ),
+            )}
           </select>
           <ChevronDown
             size={12}
@@ -157,7 +226,6 @@ export default function EmployerJobsPage() {
         </div>
       </div>
 
-      {/* Jobs list */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {loading ? (
           <div className="divide-y divide-gray-50">
@@ -184,7 +252,7 @@ export default function EmployerJobsPage() {
             </p>
             <button
               onClick={() => navigate("/employer/dashboard/post")}
-              className="text-sm text-blue-600 underline"
+              className="text-sm text-purple-600 underline"
             >
               Post your first job
             </button>
@@ -196,8 +264,8 @@ export default function EmployerJobsPage() {
                 key={job.id}
                 className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition group"
               >
-                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
-                  <Briefcase size={16} className="text-blue-500" />
+                <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center shrink-0">
+                  <Briefcase size={16} className="text-purple-500" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900 truncate">
@@ -232,26 +300,44 @@ export default function EmployerJobsPage() {
                 <StatusBadge status={job.status?.status_name ?? "Draft"} />
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
-                    onClick={() => navigate("/employer/dashboard/applicants")}
+                    onClick={() => viewApplicants(job.id)}
                     title="View applicants"
-                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                    className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition"
                   >
                     <Eye size={14} />
                   </button>
-                  {job.status?.status_name === "Draft" && (
+                  <button
+                    onClick={() => openEditModal(job)}
+                    title="Edit job"
+                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                  >
+                    <Edit2 size={14} />
+                  </button>
+                  {job.status?.status_name === "Open" && (
                     <button
-                      onClick={() => publishJob(job.id)}
-                      disabled={publishing === job.id}
-                      title="Publish job"
+                      onClick={() => closeJob(job.id)}
+                      disabled={actionLoading === job.id}
+                      title="Close job"
+                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
+                    >
+                      <XCircle size={14} />
+                    </button>
+                  )}
+                  {job.status?.status_name === "Closed" && (
+                    <button
+                      onClick={() => reopenJob(job.id)}
+                      disabled={actionLoading === job.id}
+                      title="Reopen job"
                       className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition disabled:opacity-50"
                     >
-                      <Send size={14} />
+                      <CheckCircle size={14} />
                     </button>
                   )}
                   <button
                     onClick={() => deleteJob(job.id)}
+                    disabled={actionLoading === job.id}
                     title="Delete job"
-                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
                   >
                     <Trash2 size={14} />
                   </button>
@@ -261,6 +347,104 @@ export default function EmployerJobsPage() {
           </div>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {editingJob && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={closeEditModal}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-900">Edit Job</h3>
+              <button
+                onClick={closeEditModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Job Title
+                </label>
+                <input
+                  type="text"
+                  value={editForm.title}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, title: e.target.value })
+                  }
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={editForm.description}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, description: e.target.value })
+                  }
+                  rows={4}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2 resize-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Salary Range
+                </label>
+                <input
+                  type="text"
+                  value={editForm.salary_range}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, salary_range: e.target.value })
+                  }
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2"
+                  placeholder="e.g., $60k – $80k"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Location
+                </label>
+                <input
+                  type="text"
+                  value={editForm.location}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, location: e.target.value })
+                  }
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2"
+                  placeholder="City, Country or Remote"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <button
+                  onClick={closeEditModal}
+                  className="px-4 py-2 border rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveEdit}
+                  disabled={saving}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg flex items-center gap-1"
+                >
+                  {saving ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    "Save Changes"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -14,6 +14,12 @@ import {
   Filter,
   Loader2,
   CheckCircle,
+  Calendar,
+  User,
+  Phone,
+  MapPin,
+  Code,
+  Clock,
 } from "lucide-react";
 
 function StatusBadge({ status }: { status: string }) {
@@ -34,8 +40,8 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 const avatarColors = [
+  "bg-purple-100 text-purple-600",
   "bg-blue-100 text-blue-600",
-  "bg-violet-100 text-violet-600",
   "bg-green-100 text-green-600",
   "bg-amber-100 text-amber-600",
   "bg-rose-100 text-rose-600",
@@ -63,6 +69,14 @@ export default function EmployerApplicantsPage() {
   const [expandedId, setExpanded] = useState<string | null>(null);
   const [newNote, setNewNote] = useState<Record<string, string>>({});
   const [starred, setStarred] = useState<Set<string>>(new Set());
+
+  // New state for modals
+  const [profileModal, setProfileModal] = useState<Application | null>(null);
+  const [interviewModal, setInterviewModal] = useState<{
+    app: Application;
+    date?: string;
+    time?: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -116,10 +130,48 @@ export default function EmployerApplicantsPage() {
       responseType: "blob",
     });
     const url = URL.createObjectURL(new Blob([r.data]));
-    Object.assign(document.createElement("a"), {
-      href: url,
-      download: `applicants_${selectedJobId}.csv`,
-    }).click();
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `applicants_${selectedJobId}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadResume = (url: string, fileName: string) => {
+    fetch(url)
+      .then((res) => res.blob())
+      .then((blob) => {
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+      })
+      .catch(console.error);
+  };
+
+  const scheduleInterview = (app: Application) => {
+    setInterviewModal({ app });
+  };
+
+  const confirmInterview = () => {
+    if (!interviewModal) return;
+    const { app, date, time } = interviewModal;
+    if (!date || !time) {
+      alert("Please select date and time");
+      return;
+    }
+    // Here you would call API to schedule interview, e.g.:
+    // await api.post(`/employer/applications/${app.id}/schedule-interview`, { date, time });
+    alert(
+      `Interview scheduled for ${app.seeker.full_name} on ${date} at ${time}`,
+    );
+    setInterviewModal(null);
   };
 
   const toggleStar = (id: string) => {
@@ -154,7 +206,6 @@ export default function EmployerApplicantsPage() {
 
   return (
     <div className="space-y-5 max-w-5xl mx-auto">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-gray-900">Applicants</h2>
@@ -185,7 +236,7 @@ export default function EmployerApplicantsPage() {
                 <select
                   value={selectedJobId}
                   onChange={(e) => setSelected(e.target.value)}
-                  className="w-full appearance-none text-sm border border-gray-200 rounded-xl px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white cursor-pointer"
+                  className="w-full appearance-none text-sm border border-gray-200 rounded-xl px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-purple-100 bg-white cursor-pointer"
                 >
                   <option value="">Select a job...</option>
                   {jobs.map((j) => (
@@ -214,7 +265,7 @@ export default function EmployerApplicantsPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Name or email..."
-                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
+                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-100 transition"
               />
             </div>
           </div>
@@ -230,7 +281,7 @@ export default function EmployerApplicantsPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full appearance-none text-sm border border-gray-200 rounded-xl pl-8 pr-8 py-2 focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white cursor-pointer"
+                className="w-full appearance-none text-sm border border-gray-200 rounded-xl pl-8 pr-8 py-2 focus:outline-none focus:ring-2 focus:ring-purple-100 bg-white cursor-pointer"
               >
                 {[
                   "All",
@@ -321,7 +372,7 @@ export default function EmployerApplicantsPage() {
             {statusFilter !== "All" && (
               <button
                 onClick={() => setStatusFilter("All")}
-                className="mt-2 text-xs text-blue-500 underline"
+                className="mt-2 text-xs text-purple-500 underline"
               >
                 Clear filter
               </button>
@@ -329,22 +380,19 @@ export default function EmployerApplicantsPage() {
           </div>
         ) : (
           <>
-            {/* Table header */}
             <div className="grid grid-cols-12 gap-2 px-5 py-2.5 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wide">
               <span className="col-span-1"></span>
               <span className="col-span-4">Candidate</span>
               <span className="col-span-2">Applied</span>
               <span className="col-span-2">Status</span>
-              <span className="col-span-2">Change Status</span>
+              <span className="col-span-2">Actions</span>
               <span className="col-span-1"></span>
             </div>
 
             <div className="divide-y divide-gray-50">
               {filtered.map((app, idx) => (
                 <div key={app.id}>
-                  {/* Row */}
                   <div className="grid grid-cols-12 gap-2 items-center px-5 py-3.5 hover:bg-gray-50 transition group">
-                    {/* Star */}
                     <div className="col-span-1 flex items-center justify-center">
                       <button
                         onClick={() => toggleStar(app.id)}
@@ -357,7 +405,6 @@ export default function EmployerApplicantsPage() {
                       </button>
                     </div>
 
-                    {/* Candidate info */}
                     <div className="col-span-4 flex items-center gap-3 min-w-0">
                       <div
                         className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${avatarColors[idx % avatarColors.length]}`}
@@ -374,64 +421,59 @@ export default function EmployerApplicantsPage() {
                       </div>
                     </div>
 
-                    {/* Applied date */}
                     <div className="col-span-2">
                       <p className="text-xs text-gray-500">
                         {new Date(app.applied_at).toLocaleDateString()}
                       </p>
                     </div>
 
-                    {/* Status badge */}
                     <div className="col-span-2">
                       <StatusBadge status={app.status.status_name} />
                     </div>
 
-                    {/* Status dropdown */}
-                    <div className="col-span-2">
-                      <div className="relative">
-                        <select
-                          value={app.status.status_name}
-                          onChange={(e) => updateStatus(app.id, e.target.value)}
-                          disabled={updating === app.id}
-                          className="appearance-none w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 pr-6 bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer disabled:opacity-50"
-                        >
-                          {[
-                            "Pending",
-                            "Shortlisted",
-                            "Interview",
-                            "Accepted",
-                            "Rejected",
-                          ].map((s) => (
-                            <option key={s}>{s}</option>
-                          ))}
-                        </select>
-                        {updating === app.id ? (
-                          <Loader2
-                            size={10}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 animate-spin"
-                          />
-                        ) : (
-                          <ChevronDown
-                            size={10}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                          />
-                        )}
-                      </div>
+                    <div className="col-span-2 flex items-center gap-1">
+                      <button
+                        onClick={() => setProfileModal(app)}
+                        title="View Profile"
+                        className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition"
+                      >
+                        <User size={14} />
+                      </button>
+                      {app.seeker.resume_url && (
+                        <>
+                          <a
+                            href={app.seeker.resume_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="View Resume"
+                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                          >
+                            <ExternalLink size={13} />
+                          </a>
+                          <button
+                            onClick={() =>
+                              downloadResume(
+                                app.seeker.resume_url!,
+                                `${app.seeker.full_name}_resume.pdf`,
+                              )
+                            }
+                            title="Download Resume"
+                            className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition"
+                          >
+                            <Download size={13} />
+                          </button>
+                        </>
+                      )}
+                      <button
+                        onClick={() => scheduleInterview(app)}
+                        title="Schedule Interview"
+                        className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition"
+                      >
+                        <Calendar size={14} />
+                      </button>
                     </div>
 
-                    {/* Actions */}
                     <div className="col-span-1 flex items-center justify-end gap-1">
-                      {app.seeker.resume_url && (
-                        <a
-                          href={app.seeker.resume_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="View Resume"
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                        >
-                          <FileText size={13} />
-                        </a>
-                      )}
                       <button
                         onClick={() =>
                           setExpanded(expandedId === app.id ? null : app.id)
@@ -447,13 +489,11 @@ export default function EmployerApplicantsPage() {
                     </div>
                   </div>
 
-                  {/* Expanded */}
+                  {/* Expanded section (same as before, but add status change shortcuts if needed) */}
                   {expandedId === app.id && (
                     <div className="px-5 pb-5 pt-2 border-t border-gray-50 bg-slate-50/50">
                       <div className="flex gap-6 pt-2">
-                        {/* Left: cover letter + applicant profile */}
                         <div className="flex-1 space-y-4">
-                          {/* Quick actions */}
                           <div className="flex gap-2">
                             {app.seeker.resume_url && (
                               <a
@@ -487,7 +527,6 @@ export default function EmployerApplicantsPage() {
                             </div>
                           )}
 
-                          {/* Quick status shortcuts */}
                           <div>
                             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                               Quick Actions
@@ -529,7 +568,6 @@ export default function EmployerApplicantsPage() {
                           </div>
                         </div>
 
-                        {/* Right: notes */}
                         <div className="w-72 shrink-0">
                           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                             Internal Notes ({app.notes.length})
@@ -569,11 +607,11 @@ export default function EmployerApplicantsPage() {
                                 e.key === "Enter" && addNote(app.id)
                               }
                               placeholder="Add a private note..."
-                              className="flex-1 text-xs border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-200 bg-white"
+                              className="flex-1 text-xs border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-purple-200 bg-white"
                             />
                             <button
                               onClick={() => addNote(app.id)}
-                              className="text-xs bg-blue-600 text-white px-3 py-2 rounded-xl hover:bg-blue-700 transition font-medium"
+                              className="text-xs bg-purple-600 text-white px-3 py-2 rounded-xl hover:bg-purple-700 transition font-medium"
                             >
                               Add
                             </button>
@@ -588,6 +626,155 @@ export default function EmployerApplicantsPage() {
           </>
         )}
       </div>
+
+      {/* Profile Modal */}
+      {profileModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => setProfileModal(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-900">
+                Applicant Profile
+              </h3>
+              <button
+                onClick={() => setProfileModal(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-lg font-bold">
+                  {initials(profileModal.seeker.full_name)}
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">
+                    {profileModal.seeker.full_name}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {profileModal.seeker.email}
+                  </p>
+                </div>
+              </div>
+              <div className="border-t pt-3 space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <User size={14} className="text-gray-400" />{" "}
+                  <span className="font-medium">Full Name:</span>{" "}
+                  {profileModal.seeker.full_name}
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Mail size={14} className="text-gray-400" />{" "}
+                  <span className="font-medium">Email:</span>{" "}
+                  {profileModal.seeker.email}
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Phone size={14} className="text-gray-400" />{" "}
+                  <span className="font-medium">Phone:</span>{" "}
+                  {profileModal.seeker.phone || "Not provided"}
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <MapPin size={14} className="text-gray-400" />{" "}
+                  <span className="font-medium">Location:</span>{" "}
+                  {profileModal.seeker.location || "Not provided"}
+                </div>
+                <div className="flex items-start gap-2 text-sm">
+                  <Code size={14} className="text-gray-400 mt-0.5" />{" "}
+                  <span className="font-medium">Skills:</span>{" "}
+                  {profileModal.seeker.skills?.join(", ") || "Not provided"}
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Clock size={14} className="text-gray-400" />{" "}
+                  <span className="font-medium">Applied:</span>{" "}
+                  {new Date(profileModal.applied_at).toLocaleString()}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Interview Modal */}
+      {interviewModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => setInterviewModal(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-900">
+                Schedule Interview
+              </h3>
+              <button
+                onClick={() => setInterviewModal(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600">
+                Candidate:{" "}
+                <span className="font-semibold">
+                  {interviewModal.app.seeker.full_name}
+                </span>
+              </p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Date
+                </label>
+                <input
+                  type="date"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2"
+                  onChange={(e) =>
+                    setInterviewModal({
+                      ...interviewModal,
+                      date: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Time
+                </label>
+                <input
+                  type="time"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2"
+                  onChange={(e) =>
+                    setInterviewModal({
+                      ...interviewModal,
+                      time: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <button
+                  onClick={() => setInterviewModal(null)}
+                  className="px-4 py-2 border rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmInterview}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg"
+                >
+                  Schedule
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
