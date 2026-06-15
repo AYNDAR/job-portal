@@ -11,6 +11,7 @@ import {
   deleteJob, // optional
   getJobs, // list with filters
 } from "../controllers/jobController";
+import prisma from "../lib/prisma";
 
 const router = Router();
 
@@ -29,5 +30,14 @@ router.post(
 );
 router.put("/:id", verifyToken, requireRole(["Employer"]), updateJob);
 router.delete("/:id", verifyToken, requireRole(["Employer"]), deleteJob);
+// Public - no auth required
+router.get("/industries", async (req, res) => {
+  try {
+    const industries = await prisma.jobIndustry.findMany();
+    res.json(industries);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch industries" });
+  }
+});
 
 export default router;

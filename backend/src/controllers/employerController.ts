@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
-import prisma from "../lib/prisma"; // ✅ only one prisma import
+import prisma from "../lib/prisma";
 import cloudinary from "../config/cloudinary";
-import { Prisma } from "@prisma/client";
 import { AuthRequest } from "../middlewares/authMiddleware";
 
 // Extend Express Request to include Multer file(s)
@@ -333,20 +332,35 @@ export const getEmployerProfile = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// Single updateEmployerProfile function (with description)
 export const updateEmployerProfile = async (
   req: AuthRequest,
   res: Response,
 ) => {
   try {
-    const { company_name, website, logo_url, industry_id, location } = req.body;
+    const {
+      company_name,
+      website,
+      logo_url,
+      industry_id,
+      location,
+      description,
+    } = req.body;
     const updated = await prisma.employerProfile.update({
       where: { user_id: req.user?.userId },
-      data: { company_name, website, logo_url, industry_id, location },
+      data: {
+        company_name,
+        website,
+        logo_url,
+        industry_id,
+        location,
+        description,
+      },
     });
     res.json(updated);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: "Failed to update profile" });
   }
 };
 
@@ -426,7 +440,112 @@ export const getEmployerJobPostStats = async (
   }
 };
 
-// ==================== Upload Controllers (fixed) ====================
+// ==================== Dashboard Stats & Activities (for employer overview) ====================
+
+export const getDashboardStats = async (req: AuthRequest, res: Response) => {
+  try {
+    const employer = await prisma.employerProfile.findUnique({
+      where: { user_id: req.user?.userId },
+    });
+    if (!employer) return res.status(404).json({ error: "Employer not found" });
+
+    const [
+      activeJobs,
+      totalApplications,
+      pendingReviews,
+      interviewsScheduled,
+      acceptedCandidates,
+    ] = await Promise.all([
+      prisma.jobPost.count({
+        where: { employer_id: employer.id, status: { status_name: "Open" } },
+      }),
+      prisma.jobApplication.count({
+        where: { job: { employer_id: employer.id } },
+      }),
+      prisma.jobApplication.count({
+        where: {
+          job: { employer_id: employer.id },
+          status: { status_name: "Pending" },
+        },
+      }),
+      prisma.jobApplication.count({
+        where: {
+          job: { employer_id: employer.id },
+          status: { status_name: "Interview" },
+        },
+      }),
+      prisma.jobApplication.count({
+        where: {
+          job: { employer_id: employer.id },
+          status: { status_name: "Accepted" },
+        },
+      }),
+    ]);
+    res.json({
+      activeJobs,
+      totalApplications,
+      pendingReviews,
+      interviewsScheduled,
+      acceptedCandidates,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch stats" });
+  }
+};
+
+export const getDashboardActivities = async (
+  req: AuthRequest,
+  res: Response,
+) => {
+  try {
+    const employer = await prisma.employerProfile.findUnique({
+      where: { user_id: req.user?.userId },
+    });
+    if (!employer) return res.status(404).json({ error: "Employer not found" });
+
+    const [applications, recentJobs] = await Promise.all([
+      prisma.jobApplication.findMany({
+        where: { job: { employer_id: employer.id } },
+        include: { job: true, seeker: true },
+        orderBy: { applied_at: "desc" },
+        take: 10,
+      }),
+      prisma.jobPost.findMany({
+        where: { employer_id: employer.id },
+        orderBy: { created_at: "desc" },
+        take: 5,
+      }),
+    ]);
+
+    const activities = [
+      ...applications.map((app) => ({
+        id: `app-${app.id}`,
+        type: "application" as const,
+        title: `New application from ${app.seeker.full_name} for ${app.job.title}`,
+        timestamp: app.applied_at,
+      })),
+      ...recentJobs.map((job) => ({
+        id: `job-${job.id}`,
+        type: "job" as const,
+        title: `Job posted: ${job.title}`,
+        timestamp: job.created_at,
+      })),
+    ]
+      .sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+      )
+      .slice(0, 10);
+
+    res.json(activities);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch activities" });
+  }
+};
+
+// ==================== Upload Controllers ====================
 
 export const uploadCompanyLogo = async (req: MulterRequest, res: Response) => {
   try {
@@ -463,8 +582,8 @@ export const uploadJobAttachments = async (
   res: Response,
 ) => {
   try {
-    const userId = (req as any).user?.id as string; // ✅ cast to string
-    const jobId = req.params.jobId as string; // ✅ cast to string
+    const userId = (req as any).user?.id as string;
+    const jobId = req.params.jobId as string;
 
     if (!userId || !jobId) {
       return res.status(400).json({ message: "Missing user or job ID" });

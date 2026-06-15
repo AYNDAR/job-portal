@@ -46,9 +46,30 @@ export default function DashboardHome() {
           api.get("/admin/stats/trends"),
           api.get("/admin/stats/registrations"),
         ]);
-        setStats(statsRes.data);
-        setTrends(trendsRes.data);
-        setChartData(chartRes.data);
+
+        // Safe stats assignment
+        setStats({
+          totalUsers: statsRes.data?.totalUsers ?? 0,
+          totalJobs: statsRes.data?.totalJobs ?? 0,
+          totalApplications: statsRes.data?.totalApplications ?? 0,
+          totalAdmins: statsRes.data?.totalAdmins ?? 0,
+        });
+
+        // Safe trends assignment (expects object with usersGrowth, jobsGrowth, applicationsGrowth)
+        const trendsData = trendsRes.data || {};
+        setTrends({
+          usersGrowth: trendsData.usersGrowth ?? 0,
+          jobsGrowth: trendsData.jobsGrowth ?? 0,
+          applicationsGrowth: trendsData.applicationsGrowth ?? 0,
+        });
+
+        // Safe chart data assignment (expects array of {month, count})
+        const chartDataRaw = chartRes.data;
+        if (Array.isArray(chartDataRaw)) {
+          setChartData(chartDataRaw);
+        } else {
+          setChartData([]);
+        }
       } catch (error) {
         console.error("Failed to fetch dashboard data", error);
         // Mock data fallback

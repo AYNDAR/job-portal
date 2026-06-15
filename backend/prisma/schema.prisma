@@ -44,17 +44,17 @@ model JobSeekerProfile {
 }
 
 model EmployerProfile {
-  id           String   @id @default(uuid())
-  user_id      String   @unique
-  user         User     @relation(fields: [user_id], references: [id])
-  company_name String
-  website      String?
-  logo_url     String?
-  industry_id  Int
-  industry     JobIndustry @relation(fields: [industry_id], references: [id])
-  location     String?
-
-  jobs              JobPost[]
+  id            String   @id @default(uuid())
+  user_id       String   @unique
+  user          User     @relation(fields: [user_id], references: [id])
+  company_name  String
+  website       String?
+  logo_url      String?
+  industry_id   Int
+  industry      JobIndustry @relation(fields: [industry_id], references: [id])
+  location      String?
+  description   String?   // ✅ Add this line
+  jobs          JobPost[]
   application_notes JobApplicationNote[]
 }
 

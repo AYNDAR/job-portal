@@ -367,3 +367,132 @@ export const getTopCategories = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+export const getTrends = async (req: AuthRequest, res: Response) => {
+  try {
+    const months = 6;
+    const now = new Date();
+    const trends = [];
+    for (let i = months - 1; i >= 0; i--) {
+      const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+      const users = await prisma.user.count({
+        where: { created_at: { gte: start, lt: end } },
+      });
+      const jobs = await prisma.jobPost.count({
+        where: { created_at: { gte: start, lt: end } },
+      });
+      trends.push({
+        month: start.toLocaleString("default", { month: "short" }),
+        users,
+        jobs,
+      });
+    }
+    res.json(trends);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch trends" });
+  }
+};
+export const getJobPostingsStats = async (req: AuthRequest, res: Response) => {
+  try {
+    const months = 6;
+    const data = [];
+    for (let i = months - 1; i >= 0; i--) {
+      const start = new Date();
+      start.setMonth(start.getMonth() - i);
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setMonth(end.getMonth() + 1);
+      const count = await prisma.jobPost.count({
+        where: { created_at: { gte: start, lt: end } },
+      });
+      data.push({
+        month: start.toLocaleString("default", { month: "short" }),
+        count,
+      });
+    }
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch job postings stats" });
+  }
+};
+
+export const getIndustryDistribution = async (
+  req: AuthRequest,
+  res: Response,
+) => {
+  try {
+    const industries = await prisma.jobIndustry.findMany({
+      include: { jobs: true },
+    });
+    const data = industries.map((ind) => ({
+      name: ind.industry_name,
+      value: ind.jobs.length,
+    }));
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch industry distribution" });
+  }
+};
+
+export const getUserGrowth = async (req: AuthRequest, res: Response) => {
+  try {
+    const months = 6;
+    const data = [];
+    for (let i = months - 1; i >= 0; i--) {
+      const start = new Date();
+      start.setMonth(start.getMonth() - i);
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setMonth(end.getMonth() + 1);
+      const count = await prisma.user.count({
+        where: { created_at: { gte: start, lt: end } },
+      });
+      data.push({
+        month: start.toLocaleString("default", { month: "short" }),
+        users: count,
+      });
+    }
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch user growth" });
+  }
+};
+// Get a user's profile (job seeker or employer) – used by admin panel
+export const getUserProfile = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.params.userId as string;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        job_seeker_profile: true,
+        employer_profile: { include: { industry: true } },
+      },
+    });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    const profile = user.job_seeker_profile || user.employer_profile;
+    res.json(profile || {});
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch profile" });
+  }
+};
+
+// Get employer profile by user ID – used by admin panel
+export const getEmployerProfileById = async (
+  req: AuthRequest,
+  res: Response,
+) => {
+  try {
+    const userId = req.params.userId as string;
+    const employer = await prisma.employerProfile.findUnique({
+      where: { user_id: userId },
+      include: { industry: true },
+    });
+    res.json(employer || {});
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch employer profile" });
+  }
+};

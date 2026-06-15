@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import LogoutConfirmModal from "../../components/common/LogoutConfirmModal";
 import NotificationBell from "../../components/common/NotificationBell";
+import api from "../../services/api";
 
 const menuItems = [
   {
@@ -55,25 +56,44 @@ const menuItems = [
   },
 ];
 
-const AVATAR_STORAGE_KEY = "employer_avatar";
-
 export default function EmployerDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAppDispatch();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState("");
+  const [companyLogo, setCompanyLogo] = useState("");
 
+  // Fetch employer profile (including logo) from backend
   useEffect(() => {
-    const storedAvatar = localStorage.getItem(AVATAR_STORAGE_KEY);
-    if (storedAvatar) setAvatarUrl(storedAvatar);
+    const fetchProfile = async () => {
+      try {
+        const res = await api.get("/employer/profile");
+        if (res.data.logo_url) {
+          setCompanyLogo(res.data.logo_url);
+          localStorage.setItem("employer_avatar", res.data.logo_url);
+        } else {
+          const stored = localStorage.getItem("employer_avatar");
+          if (stored) setCompanyLogo(stored);
+        }
+      } catch (err) {
+        console.error("Failed to fetch employer profile", err);
+        const stored = localStorage.getItem("employer_avatar");
+        if (stored) setCompanyLogo(stored);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  // Listen for avatar updates from CompanyProfilePage
+  useEffect(() => {
     const handleAvatarUpdate = (event: CustomEvent) => {
       if (event.detail) {
-        setAvatarUrl(event.detail);
+        setCompanyLogo(event.detail);
+        localStorage.setItem("employer_avatar", event.detail);
       } else {
-        const newAvatar = localStorage.getItem(AVATAR_STORAGE_KEY);
-        if (newAvatar) setAvatarUrl(newAvatar);
+        const stored = localStorage.getItem("employer_avatar");
+        if (stored) setCompanyLogo(stored);
       }
     };
     window.addEventListener(
@@ -165,7 +185,7 @@ export default function EmployerDashboard() {
               </span>
             </Link>
 
-            {/* Center: navigation links (matching home page) */}
+            {/* Center: navigation links */}
             <div className="hidden md:flex items-center gap-1">
               <Link
                 to="/jobs"
@@ -191,10 +211,10 @@ export default function EmployerDashboard() {
             <div className="flex items-center gap-3">
               <NotificationBell />
               <div className="flex items-center gap-2">
-                {avatarUrl ? (
+                {companyLogo ? (
                   <img
-                    src={avatarUrl}
-                    alt="Avatar"
+                    src={companyLogo}
+                    alt="Company Logo"
                     className="w-8 h-8 rounded-full object-cover"
                   />
                 ) : (

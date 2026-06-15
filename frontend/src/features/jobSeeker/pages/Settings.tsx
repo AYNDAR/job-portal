@@ -1,413 +1,290 @@
-// features/jobSeeker/pages/Settings.tsx
-import { useState, useRef } from "react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  User,
-  Bell,
   Lock,
-  Save,
-  Camera,
-  Upload,
+  Eye,
+  EyeOff,
   CheckCircle,
+  AlertCircle,
+  Trash2,
+  X,
 } from "lucide-react";
-import { Button } from "../../../components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../../../components/ui/card";
-import { Input } from "../../../components/ui/input";
-import { Label } from "../../../components/ui/label";
-import { Switch } from "../../../components/ui/switch";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "../../../components/ui/tabs";
-import { Separator } from "../../../components/ui/separator";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "../../../components/ui/avatar";
+import api from "../../../services/api";
+import { useAppDispatch } from "../../../store/hooks";
+import { logout } from "../../../store/authSlice";
 
-export default function SettingsPage() {
-  // Profile state
-  const [profile, setProfile] = useState({
-    fullName: "John Doe",
-    email: "john.doe@example.com",
-    phone: "+1 234 567 890",
-    location: "New York, NY",
-    title: "Full Stack Developer",
-    avatarUrl: "",
-  });
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
+export default function Settings() {
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
-  // Notification preferences state
-  const [notifications, setNotifications] = useState({
-    emailAlerts: true,
-    jobRecommendations: true,
-    applicationUpdates: true,
-    marketingEmails: false,
-  });
-  const [savingNotifs, setSavingNotifs] = useState(false);
-  const [notifMessage, setNotifMessage] = useState("");
+  // Delete account modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
-  const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setProfile({ ...profile, [e.target.name]: e.target.value });
-    setSaveMessage(""); // clear previous message on change
-  };
-
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const previewUrl = URL.createObjectURL(file);
-    setAvatarPreview(previewUrl);
-
-    setUploading(true);
-    const formData = new FormData();
-    formData.append("avatar", file);
-    try {
-      // Replace with real API call
-      // const response = await api.post('/upload-avatar', formData);
-      // setProfile({ ...profile, avatarUrl: response.data.url });
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      setProfile({ ...profile, avatarUrl: previewUrl });
-    } catch (error) {
-      console.error("Upload failed", error);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleSaveProfile = async () => {
-    setSaving(true);
-    setSaveMessage("");
-    try {
-      // Replace with real API call: await api.put('/profile', profile);
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      console.log("Profile saved:", profile);
-      setSaveMessage("Profile updated successfully!");
-      setTimeout(() => setSaveMessage(""), 3000);
-    } catch (error) {
-      setSaveMessage("Error saving profile. Try again.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSaveNotifications = async () => {
-    setSavingNotifs(true);
-    setNotifMessage("");
-    try {
-      // Replace with real API call: await api.put('/notifications/preferences', notifications);
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      console.log("Notification preferences saved:", notifications);
-      setNotifMessage("Notification preferences saved!");
-      setTimeout(() => setNotifMessage(""), 3000);
-    } catch (error) {
-      setNotifMessage("Error saving preferences.");
-    } finally {
-      setSavingNotifs(false);
-    }
-  };
-
-  const handlePasswordChange = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const form = e.target as HTMLFormElement;
-    const currentPwd = (
-      form.elements.namedItem("currentPassword") as HTMLInputElement
-    ).value;
-    const newPwd = (form.elements.namedItem("newPassword") as HTMLInputElement)
-      .value;
-    const confirmPwd = (
-      form.elements.namedItem("confirmPassword") as HTMLInputElement
-    ).value;
+    setMessage(null);
 
-    if (newPwd !== confirmPwd) {
-      alert("New passwords do not match");
+    if (newPassword !== confirmPassword) {
+      setMessage({ type: "error", text: "New passwords do not match" });
       return;
     }
-    console.log("Password change requested", { currentPwd, newPwd });
-    alert("Password changed successfully (mock)");
-    form.reset();
+    if (newPassword.length < 6) {
+      setMessage({
+        type: "error",
+        text: "Password must be at least 6 characters",
+      });
+      return;
+    }
+    if (currentPassword === newPassword) {
+      setMessage({
+        type: "error",
+        text: "New password must be different from current password",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await api.post("/auth/change-password", {
+        currentPassword,
+        newPassword,
+      });
+      setMessage({ type: "success", text: "Password changed successfully" });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      const errorMsg =
+        error.response?.data?.error || "Failed to change password";
+      setMessage({ type: "error", text: errorMsg });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const triggerFileInput = () => {
-    fileInputRef.current?.click();
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== "DELETE") {
+      alert('Please type "DELETE" to confirm');
+      return;
+    }
+    setDeleting(true);
+    try {
+      await api.delete("/user/account");
+      // Log out and redirect after successful deletion
+      dispatch(logout());
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      navigate("/login", {
+        state: { message: "Account deleted successfully" },
+      });
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      alert(error.response?.data?.error || "Failed to delete account");
+      setShowDeleteModal(false);
+      setDeleteConfirmText("");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-lg mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-gray-500">
-          Manage your account preferences and profile
-        </p>
+        <h2 className="text-2xl font-bold text-gray-900">Settings</h2>
+        <p className="text-sm text-gray-500 mt-1">Change your password</p>
       </div>
 
-      <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-3">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="password">Password</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-        </TabsList>
-
-        {/* Profile Tab */}
-        <TabsContent value="profile" className="space-y-4 mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User size={20} /> Personal Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Avatar Section */}
-              <div className="flex flex-col items-center sm:flex-row sm:items-start gap-6 pb-4 border-b">
-                <div className="relative">
-                  <Avatar className="w-24 h-24">
-                    <AvatarImage
-                      src={
-                        avatarPreview ||
-                        profile.avatarUrl ||
-                        "https://github.com/shadcn.png"
-                      }
-                    />
-                    <AvatarFallback className="text-2xl bg-purple-100 text-purple-800">
-                      {profile.fullName.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <button
-                    onClick={triggerFileInput}
-                    disabled={uploading}
-                    className="absolute bottom-0 right-0 bg-white rounded-full p-1 shadow-md border hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    <Camera size={16} className="text-gray-600" />
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/jpg,image/gif"
-                    onChange={handleAvatarChange}
-                    className="hidden"
-                  />
-                </div>
-                <div className="flex-1 text-center sm:text-left">
-                  <p className="text-sm font-medium">Profile Picture</p>
-                  <p className="text-xs text-gray-500">
-                    JPG, PNG or GIF. Max 2MB.
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={triggerFileInput}
-                    disabled={uploading}
-                    className="mt-2"
-                  >
-                    <Upload size={14} className="mr-1" />{" "}
-                    {uploading ? "Uploading..." : "Upload new photo"}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Form Fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <Input
-                    id="fullName"
-                    name="fullName"
-                    value={profile.fullName}
-                    onChange={handleProfileChange}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={profile.email}
-                    onChange={handleProfileChange}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    value={profile.phone}
-                    onChange={handleProfileChange}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="location">Location</Label>
-                  <Input
-                    id="location"
-                    name="location"
-                    value={profile.location}
-                    onChange={handleProfileChange}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="title">Professional Title</Label>
-                  <Input
-                    id="title"
-                    name="title"
-                    value={profile.title}
-                    onChange={handleProfileChange}
-                  />
-                </div>
-              </div>
-
-              {/* Save Button with feedback */}
-              {saveMessage && (
-                <div className="flex items-center gap-2 text-green-600 text-sm">
-                  <CheckCircle size={16} /> {saveMessage}
-                </div>
-              )}
-              <Button
-                onClick={handleSaveProfile}
-                disabled={saving}
-                className="mt-2"
+      {/* Change Password Card */}
+      <div className="bg-white rounded-2xl shadow-sm p-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Current Password */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Current Password
+            </label>
+            <div className="relative">
+              <input
+                type={showCurrent ? "text" : "password"}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="w-full px-4 py-2 pr-10 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowCurrent(!showCurrent)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
-                <Save size={16} className="mr-2" />{" "}
-                {saving ? "Saving..." : "Save Changes"}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                {showCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
 
-        {/* Password Tab */}
-        <TabsContent value="password" className="space-y-4 mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Lock size={20} /> Change Password
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handlePasswordChange} className="space-y-4">
-                <div>
-                  <Label htmlFor="currentPassword">Current Password</Label>
-                  <Input id="currentPassword" type="password" required />
-                </div>
-                <div>
-                  <Label htmlFor="newPassword">New Password</Label>
-                  <Input id="newPassword" type="password" required />
-                </div>
-                <div>
-                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                  <Input id="confirmPassword" type="password" required />
-                </div>
-                <Button type="submit">Update Password</Button>
-              </form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Notifications Tab – fully functional */}
-        <TabsContent value="notifications" className="space-y-4 mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bell size={20} /> Notification Preferences
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Email Alerts</p>
-                  <p className="text-sm text-gray-500">
-                    Receive email notifications for important updates
-                  </p>
-                </div>
-                <Switch
-                  checked={notifications.emailAlerts}
-                  onCheckedChange={(checked: boolean) =>
-                    setNotifications({ ...notifications, emailAlerts: checked })
-                  }
-                />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Job Recommendations</p>
-                  <p className="text-sm text-gray-500">
-                    Get personalized job recommendations
-                  </p>
-                </div>
-                <Switch
-                  checked={notifications.jobRecommendations}
-                  onCheckedChange={(checked: boolean) =>
-                    setNotifications({
-                      ...notifications,
-                      jobRecommendations: checked,
-                    })
-                  }
-                />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Application Updates</p>
-                  <p className="text-sm text-gray-500">
-                    Notify me when application status changes
-                  </p>
-                </div>
-                <Switch
-                  checked={notifications.applicationUpdates}
-                  onCheckedChange={(checked: boolean) =>
-                    setNotifications({
-                      ...notifications,
-                      applicationUpdates: checked,
-                    })
-                  }
-                />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Marketing Emails</p>
-                  <p className="text-sm text-gray-500">
-                    Receive tips, news, and promotions
-                  </p>
-                </div>
-                <Switch
-                  checked={notifications.marketingEmails}
-                  onCheckedChange={(checked: boolean) =>
-                    setNotifications({
-                      ...notifications,
-                      marketingEmails: checked,
-                    })
-                  }
-                />
-              </div>
-
-              {/* Save button for notifications */}
-              {notifMessage && (
-                <div className="flex items-center gap-2 text-green-600 text-sm">
-                  <CheckCircle size={16} /> {notifMessage}
-                </div>
-              )}
-              <Button
-                onClick={handleSaveNotifications}
-                disabled={savingNotifs}
-                className="mt-2"
+          {/* New Password */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              New Password
+            </label>
+            <div className="relative">
+              <input
+                type={showNew ? "text" : "password"}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full px-4 py-2 pr-10 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowNew(!showNew)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
-                {savingNotifs ? "Saving..." : "Save Preferences"}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Confirm Password */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Confirm New Password
+            </label>
+            <div className="relative">
+              <input
+                type={showConfirm ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full px-4 py-2 pr-10 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirm(!showConfirm)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          {message && (
+            <div
+              className={`flex items-center gap-2 p-3 rounded-xl text-sm ${
+                message.type === "success"
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {message.type === "success" ? (
+                <CheckCircle size={16} />
+              ) : (
+                <AlertCircle size={16} />
+              )}
+              <span>{message.text}</span>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2.5 rounded-xl transition disabled:opacity-50"
+          >
+            {loading ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+            ) : (
+              <>
+                <Lock size={16} />
+                Update Password
+              </>
+            )}
+          </button>
+        </form>
+      </div>
+
+      {/* Delete Account Card */}
+      <div className="bg-white rounded-2xl shadow-sm p-6 border border-red-100">
+        <h3 className="text-lg font-semibold text-red-600 mb-1">
+          Delete Account
+        </h3>
+        <p className="text-sm text-gray-500 mb-4">
+          Permanently delete your account and all data. This action cannot be
+          undone.
+        </p>
+        <button
+          onClick={() => setShowDeleteModal(true)}
+          className="inline-flex items-center gap-2 text-sm text-red-600 hover:text-red-700 font-medium"
+        >
+          <Trash2 size={16} />
+          Delete Account →
+        </button>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl max-w-md w-full mx-4 p-6 shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-red-600">Delete Account</h3>
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmText("");
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to permanently delete your account? All your
+              data, including applications, saved jobs, and profile information,
+              will be lost forever.
+            </p>
+            <p className="text-sm font-medium text-gray-700 mb-2">
+              Type <span className="text-red-600 font-bold">DELETE</span> to
+              confirm:
+            </p>
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="DELETE"
+              className="w-full px-4 py-2 border border-gray-200 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-red-500"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmText("");
+                }}
+                className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleting || deleteConfirmText !== "DELETE"}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleting ? "Deleting..." : "Delete Forever"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

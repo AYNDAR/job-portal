@@ -14,14 +14,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import {
-  FileSpreadsheet,
-  FileText,
-  TrendingUp,
-  Users,
-  Calendar,
-} from "lucide-react";
-import * as XLSX from "xlsx";
+import { FileText, TrendingUp, Users, Calendar } from "lucide-react";
 
 interface ChartDataPoint {
   month: string;
@@ -141,14 +134,6 @@ export default function EmployerAnalyticsPage() {
     URL.revokeObjectURL(url);
   };
 
-  const exportExcel = (data: JobApplicationCount[], filename: string) => {
-    if (!data.length) return;
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-    XLSX.writeFile(wb, `${filename}.xlsx`);
-  };
-
   if (loading)
     return <div className="p-8 text-center">Loading analytics...</div>;
 
@@ -168,14 +153,6 @@ export default function EmployerAnalyticsPage() {
             className="flex items-center gap-1 text-sm bg-gray-100 px-3 py-1.5 rounded-lg hover:bg-gray-200"
           >
             <FileText size={14} /> CSV
-          </button>
-          <button
-            onClick={() =>
-              exportExcel(applicationsPerJob, "applications_per_job")
-            }
-            className="flex items-center gap-1 text-sm bg-gray-100 px-3 py-1.5 rounded-lg hover:bg-gray-200"
-          >
-            <FileSpreadsheet size={14} /> Excel
           </button>
         </div>
       </div>

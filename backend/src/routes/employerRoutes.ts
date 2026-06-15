@@ -18,7 +18,9 @@ import {
   updateEmployerProfile,
   getEmployerProfile,
   uploadCompanyLogo, // ✅ now accepts Request (no custom interface)
-  uploadJobAttachments, // ✅ now accepts Request
+  uploadJobAttachments,
+  getDashboardActivities,
+  getDashboardStats, // ✅ now accepts Request
 } from "../controllers/employerController";
 
 const router = Router();
@@ -55,6 +57,11 @@ router.get("/profile", getEmployerProfile);
 router.put("/profile", updateEmployerProfile);
 
 // Upload company logo (single file)
-router.post("/profile/logo", upload.single("logo"), uploadCompanyLogo as RequestHandler);
-
+router.post(
+  "/profile/logo",
+  upload.single("logo"),
+  uploadCompanyLogo as RequestHandler,
+);
+router.get("/dashboard/stats", getDashboardStats);
+router.get("/dashboard/activities", getDashboardActivities);
 export default router;

@@ -6,7 +6,7 @@ import JobDetailsPage from "./features/jobs/JobDetailsPage";
 import ApplyForm from "./features/applications/ApplyForm";
 import BookmarksPage from "./features/bookmarks/BookmarksPage";
 import NotificationsPage from "./features/notifications/NotificationsPage";
-import JobSeekerDashboard from "./features/jobSeeker/pages/Dashboard";
+import JobSeekerDashboard from "./features/jobSeeker/pages/Dashboard"; // ✅ existing working component
 import StatusPage from "./features/jobSeeker/pages/Status";
 import SettingsPage from "./features/jobSeeker/pages/Settings";
 import SuperAdminDashboard from "./features/superAdmin/SuperAdminDashboard";
@@ -44,6 +44,7 @@ import MyApplications from "./features/applications/MyApplications";
 import FindJobsPage from "./pages/FindJobsPage";
 import CompaniesPage from "./pages/CompaniesPage";
 import CareerTipsPage from "./pages/CareerTipsPage";
+
 console.log("✅ NEW EmployerDashboard (with home-page navbar) loaded");
 
 function App() {
@@ -58,10 +59,9 @@ function App() {
       <Route path="/jobs" element={<FindJobsPage />} />
       <Route path="/companies" element={<CompaniesPage />} />
       <Route path="/career-tips" element={<CareerTipsPage />} />
-
       <Route path="/jobs/:id" element={<JobDetailsPage />} />
 
-      {/* Job Seeker Dashboard */}
+      {/* Job Seeker Dashboard – single route, works as before */}
       <Route
         path="/dashboard"
         element={
@@ -71,7 +71,7 @@ function App() {
         }
       />
 
-      {/* Admin Dashboard – with nested routes */}
+      {/* Admin Dashboard – nested routes */}
       <Route
         path="/admin/*"
         element={
@@ -88,7 +88,7 @@ function App() {
         <Route path="settings" element={<AdminSettings />} />
       </Route>
 
-      {/* Super Admin Dashboard */}
+      {/* Super Admin Dashboard – nested routes */}
       <Route
         path="/super-admin/*"
         element={
@@ -112,7 +112,7 @@ function App() {
         <Route path="analytics" element={<AnalyticsDashboard />} />
       </Route>
 
-      {/* Employer Dashboard */}
+      {/* Employer Dashboard – nested routes */}
       <Route
         path="/employer/dashboard"
         element={

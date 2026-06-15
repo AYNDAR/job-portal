@@ -24,7 +24,16 @@ interface Profile {
   description: string;
 }
 
-const STORAGE_KEY = "employer_company_profile";
+// Fallback industries
+const FALLBACK_INDUSTRIES: Industry[] = [
+  { id: 1, industry_name: "Technology" },
+  { id: 2, industry_name: "Healthcare" },
+  { id: 3, industry_name: "Finance" },
+  { id: 4, industry_name: "Education" },
+  { id: 5, industry_name: "Retail" },
+  { id: 6, industry_name: "Manufacturing" },
+  { id: 7, industry_name: "Construction" },
+];
 
 export default function CompanyProfilePage() {
   const [profile, setProfile] = useState<Profile>({
@@ -35,7 +44,7 @@ export default function CompanyProfilePage() {
     industry_id: 0,
     description: "",
   });
-  const [industries, setIndustries] = useState<Industry[]>([]);
+  const [industries, setIndustries] = useState<Industry[]>(FALLBACK_INDUSTRIES);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -52,30 +61,45 @@ export default function CompanyProfilePage() {
     user?.email?.slice(0, 2).toUpperCase() ||
     "CO";
 
-  // Load profile from API or localStorage
+  // Fetch existing profile from backend
   const fetchProfile = async () => {
     try {
       const res = await api.get("/employer/profile");
-      setProfile((prev) => ({ ...prev, ...res.data }));
-      // Also save to localStorage as fallback
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(res.data));
+      setProfile({
+        company_name: res.data.company_name || "",
+        logo_url: res.data.logo_url || "",
+        website: res.data.website || "",
+        location: res.data.location || "",
+        industry_id: res.data.industry_id || 0,
+        description: res.data.description || "",
+      });
+      // Update header logo
+      if (res.data.logo_url) {
+        localStorage.setItem("employer_avatar", res.data.logo_url);
+        window.dispatchEvent(
+          new CustomEvent("avatarUpdated", { detail: res.data.logo_url }),
+        );
+      }
     } catch (err) {
       console.error("Failed to fetch profile", err);
-      // Try to load from localStorage
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setProfile(JSON.parse(stored));
+    }
+  };
+
+  const fetchIndustries = async () => {
+    try {
+      const res = await api.get("/jobs/industries");
+      if (res.data && res.data.length > 0) {
+        setIndustries(res.data);
       }
+    } catch (err) {
+      console.error("Failed to fetch industries, using fallback", err);
     }
   };
 
   useEffect(() => {
-    Promise.all([fetchProfile(), api.get("/admin/categories")])
-      .then(([, i]) => {
-        setIndustries(i.data);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    Promise.all([fetchProfile(), fetchIndustries()]).finally(() =>
+      setLoading(false),
+    );
   }, []);
 
   const setField = <K extends keyof Profile>(k: K, v: Profile[K]) =>
@@ -97,17 +121,33 @@ export default function CompanyProfilePage() {
     }
     setSaving(true);
     try {
-      await api.put("/employer/profile", profile);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+      // Send the entire profile object (including logo_url)
+      const payload = { ...profile };
+      await api.put("/employer/profile", payload);
+
+      // Update header logo
+      if (profile.logo_url) {
+        localStorage.setItem("employer_avatar", profile.logo_url);
+        window.dispatchEvent(
+          new CustomEvent("avatarUpdated", { detail: profile.logo_url }),
+        );
+      }
       flash("success", "Company profile updated successfully.");
-    } catch {
-      flash("error", "Failed to save. Please try again.");
+
+      // Optional: refetch to ensure consistency
+      await fetchProfile();
+    } catch (err: any) {
+      console.error("Save error", err);
+      flash(
+        "error",
+        err.response?.data?.error || "Failed to save. Please try again.",
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  const uploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) {
@@ -120,25 +160,19 @@ export default function CompanyProfilePage() {
     }
 
     setUploadingLogo(true);
-    const formData = new FormData();
-    formData.append("logo", file);
-    try {
-      const response = await api.post("/employer/profile/logo", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      const newLogoUrl = response.data.logoUrl;
-      setField("logo_url", newLogoUrl);
-      flash("success", "Logo uploaded successfully!");
-      // Save updated profile to localStorage
-      const updatedProfile = { ...profile, logo_url: newLogoUrl };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedProfile));
-    } catch (error: any) {
-      console.error(error);
-      flash("error", error.response?.data?.message || "Logo upload failed.");
-    } finally {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result as string;
+      setField("logo_url", base64);
       setUploadingLogo(false);
-      if (logoRef.current) logoRef.current.value = "";
-    }
+      flash("success", "Logo selected. Click Save to apply changes.");
+    };
+    reader.onerror = () => {
+      flash("error", "Failed to read image");
+      setUploadingLogo(false);
+    };
+    reader.readAsDataURL(file);
+    if (logoRef.current) logoRef.current.value = "";
   };
 
   if (loading) {
@@ -191,7 +225,7 @@ export default function CompanyProfilePage() {
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-6 space-y-6">
-          {/* Logo Upload */}
+          {/* Logo display and upload */}
           <div className="flex items-center gap-6">
             <div className="relative">
               {profile.logo_url ? (
@@ -199,6 +233,11 @@ export default function CompanyProfilePage() {
                   src={profile.logo_url}
                   alt="Logo"
                   className="w-20 h-20 rounded-2xl object-cover border border-gray-200"
+                  onError={(e) => {
+                    // If image fails to load, show fallback
+                    (e.target as HTMLImageElement).style.display = "none";
+                    // You could also set a fallback state
+                  }}
                 />
               ) : (
                 <div className="w-20 h-20 rounded-2xl bg-purple-100 text-purple-600 flex items-center justify-center text-2xl font-bold">
@@ -221,12 +260,14 @@ export default function CompanyProfilePage() {
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={uploadLogo}
+                onChange={handleLogoSelect}
               />
             </div>
             <div className="text-sm text-gray-500">
-              <p>Click the camera icon to upload a company logo.</p>
-              <p className="text-xs">JPEG, PNG, max 2MB.</p>
+              <p>Click the camera icon to select a company logo.</p>
+              <p className="text-xs">
+                JPEG, PNG, max 2MB. Click Save to apply changes.
+              </p>
             </div>
           </div>
 
@@ -284,7 +325,7 @@ export default function CompanyProfilePage() {
             </div>
           </div>
 
-          {/* Industry */}
+          {/* Industry Dropdown */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Industry <span className="text-red-500">*</span>

@@ -9,7 +9,6 @@ import {
   CheckCircle,
   Activity,
   FileText,
-  MessageSquare,
 } from "lucide-react";
 
 interface Stats {
@@ -42,7 +41,6 @@ export default function EmployerOverview() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Replace with your actual API endpoints
         const [statsRes, activitiesRes] = await Promise.all([
           api.get("/employer/dashboard/stats"),
           api.get("/employer/dashboard/activities"),
@@ -51,34 +49,15 @@ export default function EmployerOverview() {
         setActivities(activitiesRes.data);
       } catch (error) {
         console.error("Failed to load dashboard data", error);
-        // Mock data for demonstration
+        // Mock data as fallback when endpoints are missing
         setStats({
-          activeJobs: 12,
-          totalApplications: 245,
-          pendingReviews: 35,
-          interviewsScheduled: 18,
-          acceptedCandidates: 9,
+          activeJobs: 0,
+          totalApplications: 0,
+          pendingReviews: 0,
+          interviewsScheduled: 0,
+          acceptedCandidates: 0,
         });
-        setActivities([
-          {
-            id: "1",
-            type: "application",
-            title: "New application received for Senior Frontend Developer",
-            timestamp: new Date().toISOString(),
-          },
-          {
-            id: "2",
-            type: "job",
-            title: "Job posted: Backend Engineer (Node.js)",
-            timestamp: new Date(Date.now() - 86400000).toISOString(),
-          },
-          {
-            id: "3",
-            type: "interview",
-            title: "Interview scheduled with John Doe for UI/UX Designer",
-            timestamp: new Date(Date.now() - 172800000).toISOString(),
-          },
-        ]);
+        setActivities([]);
       } finally {
         setLoading(false);
       }
@@ -92,35 +71,30 @@ export default function EmployerOverview() {
       value: stats.activeJobs,
       icon: <Briefcase size={20} className="text-blue-500" />,
       bg: "bg-blue-50",
-      color: "blue",
     },
     {
       title: "Total Applications",
       value: stats.totalApplications,
       icon: <Users size={20} className="text-green-500" />,
       bg: "bg-green-50",
-      color: "green",
     },
     {
       title: "Pending Reviews",
       value: stats.pendingReviews,
       icon: <Clock size={20} className="text-yellow-500" />,
       bg: "bg-yellow-50",
-      color: "yellow",
     },
     {
       title: "Interviews Scheduled",
       value: stats.interviewsScheduled,
       icon: <Calendar size={20} className="text-purple-500" />,
       bg: "bg-purple-50",
-      color: "purple",
     },
     {
       title: "Accepted Candidates",
       value: stats.acceptedCandidates,
       icon: <CheckCircle size={20} className="text-green-600" />,
       bg: "bg-green-100",
-      color: "green",
     },
   ];
 
@@ -137,16 +111,24 @@ export default function EmployerOverview() {
     }
   };
 
-  if (loading)
+  const formatDate = (dateStr: string) => {
+    try {
+      return new Date(dateStr).toLocaleString();
+    } catch {
+      return "Unknown date";
+    }
+  };
+
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        Loading dashboard...
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
       </div>
     );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Welcome Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Dashboard</h2>
@@ -156,7 +138,6 @@ export default function EmployerOverview() {
         </div>
       </div>
 
-      {/* Stats Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {statCards.map((card) => (
           <div
@@ -172,7 +153,6 @@ export default function EmployerOverview() {
         ))}
       </div>
 
-      {/* Recent Activities */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100">
           <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
@@ -196,7 +176,7 @@ export default function EmployerOverview() {
                 <div className="flex-1">
                   <p className="text-sm text-gray-800">{activity.title}</p>
                   <p className="text-xs text-gray-400">
-                    {new Date(activity.timestamp).toLocaleString()}
+                    {formatDate(activity.timestamp)}
                   </p>
                 </div>
               </div>
